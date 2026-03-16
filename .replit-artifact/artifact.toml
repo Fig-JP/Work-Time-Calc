@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "勤怠管理"
+version = "1.0.0"
+id = "artifacts/timecard"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+localPort = 22918
+name = "expo"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/timecard run dev"
+
+[services.env]
+PORT = "22918"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/timecard", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/timecard", "run", "serve"]
