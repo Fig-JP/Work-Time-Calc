@@ -29,6 +29,7 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
 
   const [hourlyWage, setHourlyWage] = useState("");
+  const [weekendHourlyWage, setWeekendHourlyWage] = useState("");
   const [breakMinutes, setBreakMinutes] = useState("");
   const [workplaceName, setWorkplaceName] = useState("");
   const [edited, setEdited] = useState(false);
@@ -41,6 +42,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (settings) {
       setHourlyWage(String(settings.hourlyWage));
+      setWeekendHourlyWage(settings.weekendHourlyWage != null ? String(settings.weekendHourlyWage) : "");
       setBreakMinutes(String(settings.breakMinutes));
       setWorkplaceName(settings.workplaceName ?? "");
     }
@@ -69,8 +71,14 @@ export default function SettingsScreen() {
       Alert.alert("入力エラー", "正しい休憩時間を入力してください。");
       return;
     }
+    const weekendWage = weekendHourlyWage.trim() !== "" ? parseInt(weekendHourlyWage) : null;
+    if (weekendWage !== null && (isNaN(weekendWage) || weekendWage <= 0)) {
+      Alert.alert("入力エラー", "正しい休日時給を入力してください。");
+      return;
+    }
     saveMutation.mutate({
       hourlyWage: wage,
+      weekendHourlyWage: weekendWage,
       breakMinutes: breakMin,
       workplaceName: workplaceName.trim() || null,
     });
@@ -125,7 +133,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>給与設定</Text>
           <View style={styles.card}>
-            <SettingRow label="時給" icon="dollar-sign">
+            <SettingRow label="平日時給" icon="dollar-sign">
               <View style={styles.inputRow}>
                 <Text style={styles.currencyPrefix}>¥</Text>
                 <TextInput
@@ -139,9 +147,24 @@ export default function SettingsScreen() {
                 <Text style={styles.unitSuffix}>/時</Text>
               </View>
             </SettingRow>
+            <View style={styles.divider} />
+            <SettingRow label="休日時給" icon="sun">
+              <View style={styles.inputRow}>
+                <Text style={styles.currencyPrefix}>¥</Text>
+                <TextInput
+                  style={styles.input}
+                  value={weekendHourlyWage}
+                  onChangeText={(v) => { setWeekendHourlyWage(v); setEdited(true); }}
+                  keyboardType="number-pad"
+                  placeholder="未設定"
+                  placeholderTextColor={C.textMuted}
+                />
+                <Text style={styles.unitSuffix}>/時</Text>
+              </View>
+            </SettingRow>
             {settings && (
               <Text style={styles.hint}>
-                1日8時間働くと {formatCurrency(parseInt(hourlyWage || "0") * 8)} 程度
+                休日時給を設定すると土日の勤務に自動適用されます
               </Text>
             )}
           </View>

@@ -54,6 +54,7 @@ export interface AttendanceSummary {
 export interface UserSettings {
   userId: string;
   hourlyWage: number;
+  weekendHourlyWage: number | null;
   breakMinutes: number;
   workplaceName: string | null;
 }
@@ -121,6 +122,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 
 export async function updateUserSettings(data: {
   hourlyWage?: number;
+  weekendHourlyWage?: number | null;
   breakMinutes?: number;
   workplaceName?: string | null;
 }): Promise<UserSettings> {
