@@ -23,6 +23,7 @@ import {
   addFriendByCode,
   acceptFriendRequest,
   removeFriend,
+  getAttendanceSummary,
   type FriendData,
   type PendingRequest,
 } from "@/lib/api";
@@ -71,6 +72,18 @@ export default function SocialScreen() {
     queryKey: ["friends", selectedMonth],
     queryFn: () => getFriends(selectedMonth),
   });
+
+  const { data: mySummary } = useQuery({
+    queryKey: ["summary", selectedMonth],
+    queryFn: () => getAttendanceSummary(selectedMonth),
+  });
+
+  const myEarnedSet = getEarnedBadges(
+    mySummary?.totalWorkMinutes ?? 0,
+    mySummary?.totalWorkDays ?? 0
+  );
+  const myEarnedHour = HOUR_BADGES.filter((b) => myEarnedSet.has(b.id));
+  const myEarnedDay = DAY_BADGES.filter((b) => myEarnedSet.has(b.id));
 
   const addFriendMutation = useMutation({
     mutationFn: addFriendByCode,
@@ -182,6 +195,38 @@ export default function SocialScreen() {
                 <Feather name="copy" size={16} color={C.tint} />
                 <Text style={styles.copyButtonText}>コピー</Text>
               </Pressable>
+            </View>
+          )}
+
+          {/* My earned badges */}
+          {(myEarnedHour.length > 0 || myEarnedDay.length > 0) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>自分のバッジ</Text>
+              <View style={styles.myBadgesCard}>
+                {myEarnedHour.length > 0 && (
+                  <View style={styles.myBadgeGroup}>
+                    {myEarnedHour.map((b) => (
+                      <View key={b.id} style={[styles.myBadgeChip, { backgroundColor: C.tintMuted, borderColor: C.tint }]}>
+                        <Feather name="clock" size={11} color={C.tint} />
+                        <Text style={[styles.myBadgeText, { color: C.tint }]}>{b.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {myEarnedHour.length > 0 && myEarnedDay.length > 0 && (
+                  <View style={styles.myBadgeDivider} />
+                )}
+                {myEarnedDay.length > 0 && (
+                  <View style={styles.myBadgeGroup}>
+                    {myEarnedDay.map((b) => (
+                      <View key={b.id} style={[styles.myBadgeChip, { backgroundColor: C.successMuted, borderColor: C.success }]}>
+                        <Feather name="calendar" size={11} color={C.success} />
+                        <Text style={[styles.myBadgeText, { color: C.success }]}>{b.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
@@ -605,4 +650,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalSendText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
+
+  // My earned badges
+  myBadgesCard: {
+    backgroundColor: C.backgroundSecondary,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 1,
+    gap: 10,
+  },
+  myBadgeGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  myBadgeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  myBadgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  myBadgeDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginVertical: 2,
+  },
 });

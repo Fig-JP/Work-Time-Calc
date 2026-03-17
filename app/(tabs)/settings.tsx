@@ -18,8 +18,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
-import { getUserSettings, updateUserSettings, getProfile, updateProfile } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { getUserSettings, updateUserSettings, getProfile, updateProfile, getAttendanceSummary } from "@/lib/api";
+import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import { HOUR_BADGES, DAY_BADGES, getEarnedBadges, type Badge } from "@/lib/badges";
 
 const C = Colors.light;
@@ -49,6 +49,18 @@ export default function SettingsScreen() {
     queryKey: ["profile"],
     queryFn: getProfile,
   });
+
+  const { data: currentSummary } = useQuery({
+    queryKey: ["summary", getCurrentMonth()],
+    queryFn: () => getAttendanceSummary(getCurrentMonth()),
+  });
+
+  const earnedBadgeSet = getEarnedBadges(
+    currentSummary?.totalWorkMinutes ?? 0,
+    currentSummary?.totalWorkDays ?? 0
+  );
+  const earnedHourBadges = HOUR_BADGES.filter((b) => earnedBadgeSet.has(b.id));
+  const earnedDayBadges = DAY_BADGES.filter((b) => earnedBadgeSet.has(b.id));
 
   useEffect(() => {
     if (profile) {
@@ -297,23 +309,41 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>表示バッジ（最大6個）</Text>
           <View style={styles.card}>
-            <Text style={styles.badgePickerLabel}>時間バッジ</Text>
-            <BadgePicker
-              badges={HOUR_BADGES}
-              selected={pinnedBadgeIds}
-              color={C.tint}
-              muted={C.tintMuted}
-              onToggle={toggleBadge}
-            />
-            <View style={styles.divider} />
-            <Text style={styles.badgePickerLabel}>日数バッジ</Text>
-            <BadgePicker
-              badges={DAY_BADGES}
-              selected={pinnedBadgeIds}
-              color={C.success}
-              muted={C.successMuted}
-              onToggle={toggleBadge}
-            />
+            {earnedHourBadges.length === 0 && earnedDayBadges.length === 0 ? (
+              <View style={styles.noBadgeWrap}>
+                <Text style={styles.noBadgeText}>今月はまだバッジを獲得していません</Text>
+              </View>
+            ) : (
+              <>
+                {earnedHourBadges.length > 0 && (
+                  <>
+                    <Text style={styles.badgePickerLabel}>時間バッジ</Text>
+                    <BadgePicker
+                      badges={earnedHourBadges}
+                      selected={pinnedBadgeIds}
+                      color={C.tint}
+                      muted={C.tintMuted}
+                      onToggle={toggleBadge}
+                    />
+                  </>
+                )}
+                {earnedHourBadges.length > 0 && earnedDayBadges.length > 0 && (
+                  <View style={styles.divider} />
+                )}
+                {earnedDayBadges.length > 0 && (
+                  <>
+                    <Text style={styles.badgePickerLabel}>日数バッジ</Text>
+                    <BadgePicker
+                      badges={earnedDayBadges}
+                      selected={pinnedBadgeIds}
+                      color={C.success}
+                      muted={C.successMuted}
+                      onToggle={toggleBadge}
+                    />
+                  </>
+                )}
+              </>
+            )}
           </View>
           <Text style={styles.hint}>選んだバッジがフレンドの画面に表示されます</Text>
         </View>
@@ -609,5 +639,14 @@ const styles = StyleSheet.create({
   badgePickerText: {
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
+  },
+  noBadgeWrap: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  noBadgeText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: C.textMuted,
   },
 });
