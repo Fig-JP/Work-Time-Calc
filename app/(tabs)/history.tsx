@@ -62,6 +62,12 @@ export default function HistoryScreen() {
   }, [selectedMonth, queryClient]);
 
   const handleDelete = (id: string) => {
+    if (Platform.OS === "web") {
+      if (window.confirm("この記録を削除しますか？")) {
+        deleteMutation.mutate(id);
+      }
+      return;
+    }
     Alert.alert(
       "記録を削除",
       "この記録を削除しますか？",
