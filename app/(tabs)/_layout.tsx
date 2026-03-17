@@ -74,7 +74,7 @@ function ClassicTabLayout() {
           borderTopWidth: 1,
           borderTopColor: C.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          ...(isWeb ? { height: 64 } : {}),
         },
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
