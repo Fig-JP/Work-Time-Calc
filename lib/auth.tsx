@@ -33,9 +33,17 @@ const AuthContext = createContext<AuthContextValue>({
   logout: async () => {},
 });
 
+const FALLBACK_API = "https://chu-tui-qin-guan-li-gei-yu-tui-ce--dazhixiaolin274.replit.app";
+
 function getApiBaseUrl(): string {
   if (process.env.EXPO_PUBLIC_DOMAIN) {
     return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  }
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (hostname === "fig-jp.github.io" || hostname.endsWith(".github.io")) {
+      return FALLBACK_API;
+    }
   }
   return "";
 }
