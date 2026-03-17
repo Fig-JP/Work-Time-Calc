@@ -27,7 +27,13 @@
     "web": {
       "favicon": "./assets/images/icon.png",
       "bundler": "metro",
-      "baseUrl": "/Work-Time-Calc"
+      "baseUrl": "/Work-Time-Calc",
+      "themeColor": "#2563EB",
+      "backgroundColor": "#2563EB",
+      "display": "standalone",
+      "orientation": "portrait",
+      "shortName": "勤怠管理",
+      "description": "出退勤・給料かんたん管理アプリ"
     },
     "plugins": [
       [
