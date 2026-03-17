@@ -85,6 +85,12 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = () => {
+    if (Platform.OS === "web") {
+      if (window.confirm("ログアウトしますか？")) {
+        logout();
+      }
+      return;
+    }
     Alert.alert(
       "ログアウト",
       "ログアウトしますか？",
