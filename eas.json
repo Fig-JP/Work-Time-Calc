@@ -7,11 +7,25 @@
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "key": "timecard-preview-v1",
+        "paths": [
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "cache": {
+        "key": "timecard-prod-v1",
+        "paths": [
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
       }
     }
   },
