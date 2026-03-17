@@ -11,4 +11,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
+config.resolver.blockList = [
+  /react-native_tmp_\d+[\\/]/,
+];
+
 module.exports = config;
