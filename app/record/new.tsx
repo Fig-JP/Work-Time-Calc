@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useWebPad } from "@/lib/useWebPad";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { createAttendanceRecord, getUserSettings } from "@/lib/api";
@@ -84,15 +84,17 @@ function calcWage(
 export default function NewRecordScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const params = useLocalSearchParams<{ date?: string }>();
 
   const today = getCurrentDateStr();
   const now = getCurrentTimeStr();
+  const initialDate = params.date ?? today;
 
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(initialDate);
   const [clockIn, setClockIn] = useState(now);
   const [clockOut, setClockOut] = useState("");
   const [breakMinutes, setBreakMinutes] = useState("");
-  const [dayType, setDayType] = useState<DayType>(inferDayType(today));
+  const [dayType, setDayType] = useState<DayType>(inferDayType(initialDate));
   const [customWage, setCustomWage] = useState("");
   const [shiftMemo, setShiftMemo] = useState("");
   const [note, setNote] = useState("");

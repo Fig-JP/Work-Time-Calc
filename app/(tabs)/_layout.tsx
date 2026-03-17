@@ -29,9 +29,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>ホーム</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="history">
-        <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
-        <Label>履歴</Label>
+      <NativeTabs.Trigger name="shift">
+        <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
+        <Label>シフト</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="social">
         <Icon sf={{ default: "rosette", selected: "rosette" }} />
@@ -52,6 +52,7 @@ function TabIcon({ name, color, size = 22 }: { name: string; color: string; size
       const sfMap: Record<string, string> = {
         home: "house",
         list: "list.bullet",
+        calendar: "calendar",
         award: "rosette",
         settings: "gearshape",
       };
@@ -101,11 +102,15 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="shift"
         options={{
-          title: "履歴",
-          tabBarIcon: ({ color }) => <TabIcon name="list" color={color} />,
+          title: "シフト",
+          tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
         }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="social"
