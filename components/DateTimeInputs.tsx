@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,71 +17,113 @@ interface TimeInputProps {
   allowEmpty?: boolean;
 }
 
-export function TimeInput({ value, onChange, placeholder, allowEmpty }: TimeInputProps) {
+export function TimeInput({ value, onChange, allowEmpty, placeholder }: TimeInputProps) {
   const minuteRef = useRef<TextInput>(null);
   const hourRef = useRef<TextInput>(null);
 
-  const hours = value.includes(":") ? value.split(":")[0] : value.length >= 2 ? value.slice(0, 2) : value;
-  const minutes = value.includes(":") ? value.split(":")[1] : "";
+  const parseValue = (v: string) => {
+    if (!v || !v.includes(":")) return { h: "", m: "" };
+    const [h, m] = v.split(":");
+    return { h: h ?? "", m: m ?? "" };
+  };
 
-  const updateValue = useCallback((h: string, m: string) => {
-    if (!h && !m && allowEmpty) {
+  const { h: initH, m: initM } = parseValue(value);
+
+  const [rawH, setRawH] = useState(initH);
+  const [rawM, setRawM] = useState(initM);
+
+  const isFocused = useRef(false);
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (value !== prevValue.current && !isFocused.current) {
+      prevValue.current = value;
+      const { h, m } = parseValue(value);
+      setRawH(h);
+      setRawM(m);
+    }
+  }, [value]);
+
+  const emit = useCallback((h: string, m: string) => {
+    if ((!h && !m) && allowEmpty) {
+      prevValue.current = "";
       onChange("");
       return;
     }
-    const hh = h.padStart(2, "0");
-    const mm = m.padStart(2, "0");
-    onChange(`${hh}:${mm}`);
+    const hNum = Math.min(parseInt(h || "0") || 0, 23);
+    const mNum = Math.min(parseInt(m || "0") || 0, 59);
+    const result = `${String(hNum).padStart(2, "0")}:${String(mNum).padStart(2, "0")}`;
+    prevValue.current = result;
+    onChange(result);
   }, [onChange, allowEmpty]);
+
+  const handleHourFocus = () => { isFocused.current = true; };
 
   const handleHourChange = (text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(digits || "0");
-    const clamped = isNaN(num) ? "" : String(Math.min(num, 23));
-    updateValue(clamped, minutes);
+    setRawH(digits);
     if (digits.length === 2) {
+      emit(digits, rawM);
       minuteRef.current?.focus();
     }
   };
 
+  const handleHourBlur = () => {
+    if (rawH) emit(rawH, rawM);
+  };
+
+  const handleMinuteFocus = () => { isFocused.current = true; };
+
   const handleMinuteChange = (text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(digits || "0");
-    const clamped = isNaN(num) ? "" : String(Math.min(num, 59));
-    updateValue(hours, clamped);
+    setRawM(digits);
+    if (digits.length === 2) {
+      emit(rawH, digits);
+    }
     if (digits.length === 0) {
       hourRef.current?.focus();
     }
   };
 
-  const handleClear = () => {
-    if (allowEmpty) {
-      onChange("");
-      hourRef.current?.focus();
-    }
+  const handleMinuteBlur = () => {
+    isFocused.current = false;
+    if (rawM) emit(rawH, rawM);
   };
 
-  const displayHours = hours ? hours.padStart(2, "0") : "";
-  const displayMinutes = minutes ? minutes.padStart(2, "0") : "";
-  const isEmpty = !value && allowEmpty;
+  const handleClear = () => {
+    if (!allowEmpty) return;
+    setRawH("");
+    setRawM("");
+    prevValue.current = "";
+    onChange("");
+  };
+
+  const handleActivateEmpty = () => {
+    setRawH("09");
+    setRawM("00");
+    prevValue.current = "09:00";
+    onChange("09:00");
+    setTimeout(() => hourRef.current?.focus(), 80);
+  };
+
+  const isEmpty = allowEmpty && !value;
 
   return (
-    <View style={timeStyles.container}>
+    <View style={ts.container}>
       {isEmpty ? (
-        <Pressable style={timeStyles.emptyPill} onPress={() => {
-          onChange("09:00");
-          setTimeout(() => hourRef.current?.focus(), 50);
-        }}>
-          <Text style={timeStyles.emptyText}>{placeholder ?? "未入力"}</Text>
+        <Pressable style={ts.emptyPill} onPress={handleActivateEmpty}>
+          <Text style={ts.emptyText}>{placeholder ?? "未入力"}</Text>
         </Pressable>
       ) : (
         <>
-          <View style={timeStyles.segment}>
+          <View style={ts.segment}>
             <TextInput
               ref={hourRef}
-              style={timeStyles.segmentInput}
-              value={displayHours}
+              style={ts.segmentInput}
+              value={rawH}
               onChangeText={handleHourChange}
+              onFocus={handleHourFocus}
+              onBlur={handleHourBlur}
               keyboardType="number-pad"
               maxLength={2}
               selectTextOnFocus
@@ -89,13 +131,15 @@ export function TimeInput({ value, onChange, placeholder, allowEmpty }: TimeInpu
               placeholderTextColor={C.textMuted}
             />
           </View>
-          <Text style={timeStyles.separator}>:</Text>
-          <View style={timeStyles.segment}>
+          <Text style={ts.separator}>:</Text>
+          <View style={ts.segment}>
             <TextInput
               ref={minuteRef}
-              style={timeStyles.segmentInput}
-              value={displayMinutes}
+              style={ts.segmentInput}
+              value={rawM}
               onChangeText={handleMinuteChange}
+              onFocus={handleMinuteFocus}
+              onBlur={handleMinuteBlur}
               keyboardType="number-pad"
               maxLength={2}
               selectTextOnFocus
@@ -104,8 +148,8 @@ export function TimeInput({ value, onChange, placeholder, allowEmpty }: TimeInpu
             />
           </View>
           {allowEmpty && (
-            <Pressable onPress={handleClear} style={timeStyles.clearBtn} hitSlop={8}>
-              <Text style={timeStyles.clearText}>×</Text>
+            <Pressable onPress={handleClear} style={ts.clearBtn} hitSlop={10}>
+              <Text style={ts.clearText}>×</Text>
             </Pressable>
           )}
         </>
@@ -114,15 +158,15 @@ export function TimeInput({ value, onChange, placeholder, allowEmpty }: TimeInpu
   );
 }
 
-const timeStyles = StyleSheet.create({
+const ts = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
   },
   segment: {
-    width: 40,
-    height: 36,
+    width: 44,
+    height: 40,
     backgroundColor: C.backgroundTertiary,
     borderRadius: 8,
     alignItems: "center",
@@ -131,37 +175,42 @@ const timeStyles = StyleSheet.create({
     borderColor: C.border,
   },
   segmentInput: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: "Inter_700Bold",
     color: C.text,
     textAlign: "center",
     width: "100%",
     height: "100%",
     padding: 0,
+    includeFontPadding: false,
   },
   separator: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
     color: C.textSecondary,
     marginHorizontal: 1,
+    lineHeight: 24,
   },
   clearBtn: {
-    marginLeft: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    marginLeft: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: C.backgroundTertiary,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.border,
   },
   clearText: {
     fontSize: 13,
     color: C.textMuted,
-    lineHeight: 18,
+    lineHeight: 20,
+    textAlign: "center",
   },
   emptyPill: {
-    height: 36,
-    paddingHorizontal: 12,
+    height: 40,
+    paddingHorizontal: 14,
     backgroundColor: C.backgroundTertiary,
     borderRadius: 8,
     borderWidth: 1.5,
@@ -186,53 +235,86 @@ export function DateInput({ value, onChange }: DateInputProps) {
   const monthRef = useRef<TextInput>(null);
   const dayRef = useRef<TextInput>(null);
 
-  const parts = value.split("-");
-  const year = parts[0] ?? "";
-  const month = parts[1] ?? "";
-  const day = parts[2] ?? "";
-
-  const updateValue = (y: string, mo: string, d: string) => {
-    if (y.length === 4 && mo.length <= 2 && d.length <= 2) {
-      const mm = mo.padStart(2, "0");
-      const dd = d.padStart(2, "0");
-      onChange(`${y}-${mm}-${dd}`);
-    } else {
-      onChange(`${y}-${mo}-${d}`);
-    }
+  const parseDateValue = (v: string) => {
+    if (!v) return { y: "", mo: "", d: "" };
+    const parts = v.split("-");
+    return { y: parts[0] ?? "", mo: parts[1] ?? "", d: parts[2] ?? "" };
   };
 
+  const { y: initY, mo: initMo, d: initD } = parseDateValue(value);
+  const [rawY, setRawY] = useState(initY);
+  const [rawMo, setRawMo] = useState(initMo);
+  const [rawD, setRawD] = useState(initD);
+
+  const isFocused = useRef(false);
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (value !== prevValue.current && !isFocused.current) {
+      prevValue.current = value;
+      const { y, mo, d } = parseDateValue(value);
+      setRawY(y);
+      setRawMo(mo);
+      setRawD(d);
+    }
+  }, [value]);
+
+  const emit = useCallback((y: string, mo: string, d: string) => {
+    if (y.length !== 4) return;
+    const moNum = Math.min(Math.max(parseInt(mo || "1") || 1, 1), 12);
+    const dNum = Math.min(Math.max(parseInt(d || "1") || 1, 1), 31);
+    const result = `${y}-${String(moNum).padStart(2, "0")}-${String(dNum).padStart(2, "0")}`;
+    prevValue.current = result;
+    onChange(result);
+  }, [onChange]);
+
+  const handleYearFocus = () => { isFocused.current = true; };
   const handleYearChange = (text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 4);
-    updateValue(digits, month, day);
+    setRawY(digits);
     if (digits.length === 4) {
+      emit(digits, rawMo, rawD);
       monthRef.current?.focus();
     }
   };
+  const handleYearBlur = () => { if (rawY.length === 4) emit(rawY, rawMo, rawD); };
 
+  const handleMonthFocus = () => { isFocused.current = true; };
   const handleMonthChange = (text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(digits || "0");
-    const clamped = digits.length > 0 ? String(Math.min(Math.max(num, 1), 12)) : "";
-    updateValue(year, clamped, day);
+    setRawMo(digits);
     if (digits.length === 2) {
+      emit(rawY, digits, rawD);
       dayRef.current?.focus();
     }
+    if (digits.length === 0) {
+      // backspace from month → go back to year? leave it
+    }
   };
+  const handleMonthBlur = () => { if (rawMo) emit(rawY, rawMo, rawD); };
 
+  const handleDayFocus = () => { isFocused.current = true; };
   const handleDayChange = (text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(digits || "0");
-    const clamped = digits.length > 0 ? String(Math.min(Math.max(num, 1), 31)) : "";
-    updateValue(year, month, clamped);
+    setRawD(digits);
+    if (digits.length === 2) {
+      emit(rawY, rawMo, digits);
+    }
+  };
+  const handleDayBlur = () => {
+    isFocused.current = false;
+    if (rawD) emit(rawY, rawMo, rawD);
   };
 
   return (
-    <View style={dateStyles.container}>
-      <View style={[dateStyles.segment, { width: 56 }]}>
+    <View style={ds.container}>
+      <View style={[ds.segment, { width: 60 }]}>
         <TextInput
-          style={dateStyles.segmentInput}
-          value={year}
+          style={ds.segmentInput}
+          value={rawY}
           onChangeText={handleYearChange}
+          onFocus={handleYearFocus}
+          onBlur={handleYearBlur}
           keyboardType="number-pad"
           maxLength={4}
           selectTextOnFocus
@@ -240,13 +322,15 @@ export function DateInput({ value, onChange }: DateInputProps) {
           placeholderTextColor={C.textMuted}
         />
       </View>
-      <Text style={dateStyles.separator}>/</Text>
-      <View style={[dateStyles.segment, { width: 36 }]}>
+      <Text style={ds.separator}>/</Text>
+      <View style={[ds.segment, { width: 40 }]}>
         <TextInput
           ref={monthRef}
-          style={dateStyles.segmentInput}
-          value={month.padStart(2, "0")}
+          style={ds.segmentInput}
+          value={rawMo}
           onChangeText={handleMonthChange}
+          onFocus={handleMonthFocus}
+          onBlur={handleMonthBlur}
           keyboardType="number-pad"
           maxLength={2}
           selectTextOnFocus
@@ -254,13 +338,15 @@ export function DateInput({ value, onChange }: DateInputProps) {
           placeholderTextColor={C.textMuted}
         />
       </View>
-      <Text style={dateStyles.separator}>/</Text>
-      <View style={[dateStyles.segment, { width: 36 }]}>
+      <Text style={ds.separator}>/</Text>
+      <View style={[ds.segment, { width: 40 }]}>
         <TextInput
           ref={dayRef}
-          style={dateStyles.segmentInput}
-          value={day.padStart(2, "0")}
+          style={ds.segmentInput}
+          value={rawD}
           onChangeText={handleDayChange}
+          onFocus={handleDayFocus}
+          onBlur={handleDayBlur}
           keyboardType="number-pad"
           maxLength={2}
           selectTextOnFocus
@@ -272,14 +358,14 @@ export function DateInput({ value, onChange }: DateInputProps) {
   );
 }
 
-const dateStyles = StyleSheet.create({
+const ds = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
   },
   segment: {
-    height: 36,
+    height: 40,
     backgroundColor: C.backgroundTertiary,
     borderRadius: 8,
     alignItems: "center",
@@ -295,9 +381,10 @@ const dateStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
     padding: 0,
+    includeFontPadding: false,
   },
   separator: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: "Inter_600SemiBold",
     color: C.textSecondary,
     marginHorizontal: 1,
