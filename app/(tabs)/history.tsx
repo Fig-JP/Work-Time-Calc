@@ -13,6 +13,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTabBarHeight } from "@/lib/useTabBarHeight";
+import { useWebPad } from "@/lib/useWebPad";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -75,8 +76,9 @@ export default function HistoryScreen() {
     );
   };
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const bottomPad = tabBarHeight + (Platform.OS === "web" ? 34 : 0);
+  const { topExtra, bottomExtra } = useWebPad();
+  const topPad = insets.top + topExtra;
+  const bottomPad = tabBarHeight + bottomExtra;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>

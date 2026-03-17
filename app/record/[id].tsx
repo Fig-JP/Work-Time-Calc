@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWebPad } from "@/lib/useWebPad";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -115,8 +116,9 @@ export default function EditRecordScreen() {
     ]);
   };
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+  const { topExtra, bottomExtra } = useWebPad();
+  const topPad = insets.top + topExtra;
+  const bottomPad = insets.bottom + bottomExtra;
 
   function timeToMinutes(t: string): number {
     const [h, m] = t.split(":").map(Number);

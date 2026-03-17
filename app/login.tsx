@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWebPad } from "@/lib/useWebPad";
 import { router } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import Colors from "@/constants/colors";
@@ -26,6 +27,7 @@ function isPWAStandalone(): boolean {
 export default function LoginScreen() {
   const { login, isLoading, isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
+  const { topExtra, bottomExtra } = useWebPad();
   const [standalone] = useState(() => isPWAStandalone());
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0), paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topExtra, paddingBottom: insets.bottom + bottomExtra }]}>
       <View style={styles.topSection}>
         <View style={styles.iconContainer}>
           <Feather name="clock" size={48} color={C.tint} />
