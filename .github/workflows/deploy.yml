@@ -58,23 +58,20 @@ jobs:
               "$f"
           done
           # Fix JS bundles: replace root-relative asset/expo paths with baseUrl prefix
-          # Note: Expo generates "/assets/assets/..." for local assets (double "assets"),
-          # and "/assets/__node_modules/..." for node_modules assets.
+          # Expo generates "/assets/assets/..." for local project assets (double "assets")
+          # and "/assets/node_modules/..." for node_modules assets.
+          # Use a single broad pattern "/assets/ -> /Work-Time-Calc/assets/ to cover all cases.
           find dist/_expo/static/js -name "*.js" | while read f; do
             sed -i \
               -e "s|\"/_expo/|\"${BASE}/_expo/|g" \
-              -e "s|\"/assets/assets/|\"/Work-Time-Calc/assets/|g" \
-              -e "s|\"/assets/__node_modules/|\"/Work-Time-Calc/assets/__node_modules/|g" \
-              -e "s|\"/assets/node_modules/|\"/Work-Time-Calc/assets/node_modules/|g" \
+              -e "s|\"/assets/|\"/Work-Time-Calc/assets/|g" \
               "$f"
           done
           # Fix CSS files
           find dist/_expo/static/css -name "*.css" | while read f; do
             sed -i \
               -e "s|url(/_expo/|url(/Work-Time-Calc/_expo/|g" \
-              -e "s|url(/assets/assets/|url(/Work-Time-Calc/assets/|g" \
-              -e "s|url(/assets/__node_modules/|url(/Work-Time-Calc/assets/__node_modules/|g" \
-              -e "s|url(/assets/node_modules/|url(/Work-Time-Calc/assets/node_modules/|g" \
+              -e "s|url(/assets/|url(/Work-Time-Calc/assets/|g" \
               "$f"
           done
           cp dist/index.html dist/404.html
