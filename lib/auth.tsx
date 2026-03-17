@@ -135,13 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
     const authToken = params.get("auth_token");
     const isPopup = params.get("popup") === "1";
-    if (authToken && isPopup) {
+    if (authToken) {
       storeToken(authToken).then(async () => {
         const url = new URL(window.location.href);
         url.searchParams.delete("auth_token");
         url.searchParams.delete("popup");
         window.history.replaceState({}, "", url.toString());
-        window.close();
+        if (isPopup) {
+          window.close();
+        }
         await fetchUser();
       });
     }
@@ -230,18 +232,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async () => {
     if (isWeb) {
       const apiBase = getApiBaseUrl();
-      const loginUrl = `${apiBase}/api/login?returnTo=${encodeURIComponent("/__popup")}`;
-      const popup = window.open(loginUrl, "replit_auth", "popup=yes,width=520,height=640,left=100,top=100");
-      popupRef.current = popup;
-      if (popup) {
-        const poll = setInterval(async () => {
-          if (popup.closed) {
-            clearInterval(poll);
-            popupRef.current = null;
-            await fetchUser();
-          }
-        }, 500);
-      }
+      const loginUrl = `${apiBase}/api/login?returnTo=${encodeURIComponent("/__web_return")}`;
+      window.location.href = loginUrl;
       return;
     }
     try {
@@ -249,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Login error:", err);
     }
-  }, [promptAsync, fetchUser]);
+  }, [promptAsync]);
 
   const logout = useCallback(async () => {
     await clearToken();
