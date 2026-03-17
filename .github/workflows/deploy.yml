@@ -35,6 +35,19 @@ jobs:
           EXPO_PUBLIC_DOMAIN: ${{ secrets.API_DOMAIN }}
           EXPO_PUBLIC_REPL_ID: ${{ secrets.REPL_ID }}
 
+      - name: Fix asset paths for GitHub Pages subpath
+        run: |
+          BASE="/Work-Time-Calc"
+          find dist -name "*.html" | while read f; do
+            sed -i \
+              -e "s|href=\"/_expo/|href=\"${BASE}/_expo/|g" \
+              -e "s|src=\"/_expo/|src=\"${BASE}/_expo/|g" \
+              -e "s|href=\"/favicon.ico\"|href=\"${BASE}/favicon.ico\"|g" \
+              -e "s|href=\"/manifest.json\"|href=\"${BASE}/manifest.json\"|g" \
+              "$f"
+          done
+          cp dist/index.html dist/404.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
