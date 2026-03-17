@@ -19,10 +19,15 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import { getUserSettings, updateUserSettings, getProfile, updateProfile, getAttendanceSummary } from "@/lib/api";
+import type { WageRange } from "@/lib/api";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import { HOUR_BADGES, DAY_BADGES, getEarnedBadges, type Badge } from "@/lib/badges";
 
 const C = Colors.light;
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -32,6 +37,9 @@ export default function SettingsScreen() {
 
   const [hourlyWage, setHourlyWage] = useState("");
   const [weekendHourlyWage, setWeekendHourlyWage] = useState("");
+  const [nightHourlyWage, setNightHourlyWage] = useState("");
+  const [holidayHourlyWage, setHolidayHourlyWage] = useState("");
+  const [wageRanges, setWageRanges] = useState<WageRange[]>([]);
   const [breakMinutes, setBreakMinutes] = useState("");
   const [workplaceName, setWorkplaceName] = useState("");
   const [edited, setEdited] = useState(false);
@@ -73,6 +81,9 @@ export default function SettingsScreen() {
     if (settings) {
       setHourlyWage(String(settings.hourlyWage));
       setWeekendHourlyWage(settings.weekendHourlyWage != null ? String(settings.weekendHourlyWage) : "");
+      setNightHourlyWage(settings.nightHourlyWage != null ? String(settings.nightHourlyWage) : "");
+      setHolidayHourlyWage(settings.holidayHourlyWage != null ? String(settings.holidayHourlyWage) : "");
+      setWageRanges(settings.wageRanges ?? []);
       setBreakMinutes(String(settings.breakMinutes));
       setWorkplaceName(settings.workplaceName ?? "");
     }
@@ -115,6 +126,12 @@ export default function SettingsScreen() {
     setProfileEdited(true);
   }
 
+  function parseOptionalWage(val: string): number | null {
+    if (val.trim() === "") return null;
+    const n = parseInt(val);
+    return isNaN(n) || n <= 0 ? null : n;
+  }
+
   const handleSave = () => {
     const wage = parseInt(hourlyWage);
     const breakMin = parseInt(breakMinutes);
@@ -126,14 +143,27 @@ export default function SettingsScreen() {
       Alert.alert("入力エラー", "正しい休憩時間を入力してください。");
       return;
     }
-    const weekendWage = weekendHourlyWage.trim() !== "" ? parseInt(weekendHourlyWage) : null;
-    if (weekendWage !== null && (isNaN(weekendWage) || weekendWage <= 0)) {
-      Alert.alert("入力エラー", "正しい休日時給を入力してください。");
-      return;
+    const weekendWage = parseOptionalWage(weekendHourlyWage);
+    const nightWage = parseOptionalWage(nightHourlyWage);
+    const holidayWage = parseOptionalWage(holidayHourlyWage);
+
+    for (const r of wageRanges) {
+      if (!r.start.match(/^\d{2}:\d{2}$/) || !r.end.match(/^\d{2}:\d{2}$/)) {
+        Alert.alert("入力エラー", `時間帯「${r.label}」の時刻形式が正しくありません。`);
+        return;
+      }
+      if (!r.wage || r.wage <= 0) {
+        Alert.alert("入力エラー", `時間帯「${r.label}」の時給を入力してください。`);
+        return;
+      }
     }
+
     saveMutation.mutate({
       hourlyWage: wage,
       weekendHourlyWage: weekendWage,
+      nightHourlyWage: nightWage,
+      holidayHourlyWage: holidayWage,
+      wageRanges: wageRanges,
       breakMinutes: breakMin,
       workplaceName: workplaceName.trim() || null,
     });
@@ -151,14 +181,30 @@ export default function SettingsScreen() {
       "ログアウトしますか？",
       [
         { text: "キャンセル", style: "cancel" },
-        {
-          text: "ログアウト",
-          style: "destructive",
-          onPress: logout,
-        },
+        { text: "ログアウト", style: "destructive", onPress: logout },
       ]
     );
   };
+
+  function addWageRange() {
+    setWageRanges((prev) => [
+      ...prev,
+      { id: genId(), label: "新しい時間帯", start: "22:00", end: "05:00", wage: 0 },
+    ]);
+    setEdited(true);
+  }
+
+  function removeWageRange(id: string) {
+    setWageRanges((prev) => prev.filter((r) => r.id !== id));
+    setEdited(true);
+  }
+
+  function updateWageRange(id: string, field: keyof WageRange, value: string | number) {
+    setWageRanges((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+    setEdited(true);
+  }
 
   const { topExtra, bottomExtra } = useWebPad();
   const topPad = insets.top + topExtra;
@@ -193,43 +239,109 @@ export default function SettingsScreen() {
 
         {/* Wage Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>給与設定</Text>
+          <Text style={styles.sectionLabel}>時給設定</Text>
           <View style={styles.card}>
-            <SettingRow label="平日時給" icon="dollar-sign">
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyPrefix}>¥</Text>
-                <TextInput
-                  style={styles.input}
-                  value={hourlyWage}
-                  onChangeText={(v) => { setHourlyWage(v); setEdited(true); }}
-                  keyboardType="number-pad"
-                  placeholder="1000"
-                  placeholderTextColor={C.textMuted}
-                />
-                <Text style={styles.unitSuffix}>/時</Text>
-              </View>
+            <SettingRow label="平日" icon="dollar-sign">
+              <WageInput value={hourlyWage} onChange={(v) => { setHourlyWage(v); setEdited(true); }} placeholder="1000" />
             </SettingRow>
             <View style={styles.divider} />
-            <SettingRow label="休日時給" icon="sun">
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyPrefix}>¥</Text>
-                <TextInput
-                  style={styles.input}
-                  value={weekendHourlyWage}
-                  onChangeText={(v) => { setWeekendHourlyWage(v); setEdited(true); }}
-                  keyboardType="number-pad"
-                  placeholder="未設定"
-                  placeholderTextColor={C.textMuted}
-                />
-                <Text style={styles.unitSuffix}>/時</Text>
-              </View>
+            <SettingRow label="休日" icon="sun">
+              <WageInput value={weekendHourlyWage} onChange={(v) => { setWeekendHourlyWage(v); setEdited(true); }} placeholder="未設定" />
             </SettingRow>
-            {settings && (
-              <Text style={styles.hint}>
-                休日時給を設定すると土日の勤務に自動適用されます
-              </Text>
-            )}
+            <View style={styles.divider} />
+            <SettingRow label="夜間" icon="moon">
+              <WageInput value={nightHourlyWage} onChange={(v) => { setNightHourlyWage(v); setEdited(true); }} placeholder="未設定" />
+            </SettingRow>
+            <View style={styles.divider} />
+            <SettingRow label="祝日" icon="star">
+              <WageInput value={holidayHourlyWage} onChange={(v) => { setHolidayHourlyWage(v); setEdited(true); }} placeholder="未設定" />
+            </SettingRow>
           </View>
+          <Text style={styles.hint}>打刻時に日種別を選択すると自動適用されます</Text>
+        </View>
+
+        {/* Time-Range Wages */}
+        <View style={styles.section}>
+          <View style={styles.sectionLabelRow}>
+            <Text style={styles.sectionLabel}>時間帯別時給</Text>
+            <Pressable
+              style={({ pressed }) => [styles.addRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={addWageRange}
+            >
+              <Feather name="plus" size={14} color={C.tint} />
+              <Text style={styles.addRangeBtnText}>追加</Text>
+            </Pressable>
+          </View>
+
+          {wageRanges.length === 0 ? (
+            <View style={[styles.card, styles.emptyRangeCard]}>
+              <Feather name="clock" size={20} color={C.textMuted} />
+              <Text style={styles.emptyRangeText}>
+                時間帯ごとに異なる時給を設定できます{"\n"}例：22:00〜05:00 → ¥1,250
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.rangesContainer}>
+              {wageRanges.map((range, idx) => (
+                <View key={range.id} style={styles.rangeCard}>
+                  <View style={styles.rangeHeader}>
+                    <TextInput
+                      style={styles.rangeLabelInput}
+                      value={range.label}
+                      onChangeText={(v) => updateWageRange(range.id, "label", v)}
+                      placeholder="ラベル（例：深夜帯）"
+                      placeholderTextColor={C.textMuted}
+                    />
+                    <Pressable
+                      style={({ pressed }) => [styles.removeRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => removeWageRange(range.id)}
+                    >
+                      <Feather name="trash-2" size={15} color={C.danger} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.rangeBody}>
+                    <View style={styles.rangeTimeRow}>
+                      <TextInput
+                        style={styles.rangeTimeInput}
+                        value={range.start}
+                        onChangeText={(v) => updateWageRange(range.id, "start", v)}
+                        placeholder="00:00"
+                        placeholderTextColor={C.textMuted}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                      <Text style={styles.rangeTimeSep}>〜</Text>
+                      <TextInput
+                        style={styles.rangeTimeInput}
+                        value={range.end}
+                        onChangeText={(v) => updateWageRange(range.id, "end", v)}
+                        placeholder="00:00"
+                        placeholderTextColor={C.textMuted}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                    </View>
+                    <View style={styles.rangeWageRow}>
+                      <Text style={styles.currencyPrefix}>¥</Text>
+                      <TextInput
+                        style={styles.rangeWageInput}
+                        value={range.wage > 0 ? String(range.wage) : ""}
+                        onChangeText={(v) => {
+                          const n = parseInt(v);
+                          updateWageRange(range.id, "wage", isNaN(n) ? 0 : n);
+                        }}
+                        placeholder="時給"
+                        placeholderTextColor={C.textMuted}
+                        keyboardType="number-pad"
+                      />
+                      <Text style={styles.unitSuffix}>/時</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={styles.hint}>時間帯と重なる部分は自動で分割計算されます（深夜は例：22:00〜05:00）</Text>
         </View>
 
         {/* Work Settings */}
@@ -387,6 +499,32 @@ export default function SettingsScreen() {
   );
 }
 
+function WageInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <View style={styles.inputRow}>
+      <Text style={styles.currencyPrefix}>¥</Text>
+      <TextInput
+        style={styles.input}
+        value={value}
+        onChangeText={onChange}
+        keyboardType="number-pad"
+        placeholder={placeholder}
+        placeholderTextColor={C.textMuted}
+        selectTextOnFocus
+      />
+      <Text style={styles.unitSuffix}>/時</Text>
+    </View>
+  );
+}
+
 function SettingRow({
   label,
   icon,
@@ -474,6 +612,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 4,
   },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  addRangeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: C.tintMuted,
+    borderWidth: 1,
+    borderColor: "rgba(37,99,235,0.15)",
+  },
+  addRangeBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: C.tint,
+  },
   card: {
     backgroundColor: C.backgroundSecondary,
     borderRadius: 16,
@@ -483,6 +643,102 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 4,
     elevation: 1,
+  },
+  emptyRangeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  emptyRangeText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: C.textMuted,
+    lineHeight: 20,
+  },
+  rangesContainer: {
+    gap: 8,
+  },
+  rangeCard: {
+    backgroundColor: C.backgroundSecondary,
+    borderRadius: 14,
+    overflow: "hidden",
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  rangeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  rangeLabelInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: C.text,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    paddingBottom: 4,
+  },
+  removeRangeBtn: {
+    padding: 4,
+  },
+  rangeBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  rangeTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  rangeTimeInput: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: C.text,
+    textAlign: "center",
+    width: 58,
+    height: 36,
+    backgroundColor: C.backgroundTertiary,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 0,
+  },
+  rangeTimeSep: {
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
+    color: C.textSecondary,
+  },
+  rangeWageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  rangeWageInput: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: C.text,
+    textAlign: "center",
+    width: 72,
+    height: 36,
+    backgroundColor: C.backgroundTertiary,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 0,
   },
   profileCard: {
     flexDirection: "row",
@@ -569,8 +825,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: C.textMuted,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    marginTop: 6,
+    marginLeft: 4,
+    lineHeight: 17,
   },
   divider: {
     height: 1,
@@ -607,13 +864,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_500Medium",
     color: C.danger,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: C.textMuted,
-    marginTop: 6,
-    marginLeft: 4,
   },
   badgePickerLabel: {
     fontSize: 12,

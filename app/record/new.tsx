@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,10 +18,68 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { createAttendanceRecord, getUserSettings } from "@/lib/api";
+import type { DayType, WageRange } from "@/lib/api";
 import { getCurrentDateStr, getCurrentTimeStr } from "@/lib/utils";
 import { DateInput, TimeInput } from "@/components/DateTimeInputs";
 
 const C = Colors.light;
+
+type DayTypeOption = {
+  key: DayType;
+  label: string;
+  icon: string;
+  color: string;
+};
+
+const ALL_DAY_TYPES: DayTypeOption[] = [
+  { key: "weekday", label: "平日", icon: "briefcase", color: C.tint },
+  { key: "weekend", label: "休日", icon: "sun", color: C.warning },
+  { key: "holiday", label: "祝日", icon: "star", color: "#ef4444" },
+  { key: "night", label: "夜間", icon: "moon", color: "#6366f1" },
+  { key: "custom", label: "その他", icon: "edit-2", color: C.textSecondary },
+];
+
+function inferDayType(dateStr: string): DayType {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  return day === 0 || day === 6 ? "weekend" : "weekday";
+}
+
+function getWageLabel(dayType: DayType, settings: any): string {
+  switch (dayType) {
+    case "weekday": return `¥${(settings?.hourlyWage ?? 1000).toLocaleString("ja-JP")}/時`;
+    case "weekend": return settings?.weekendHourlyWage != null ? `¥${Number(settings.weekendHourlyWage).toLocaleString("ja-JP")}/時` : "未設定";
+    case "holiday": return settings?.holidayHourlyWage != null ? `¥${Number(settings.holidayHourlyWage).toLocaleString("ja-JP")}/時` : "未設定";
+    case "night": return settings?.nightHourlyWage != null ? `¥${Number(settings.nightHourlyWage).toLocaleString("ja-JP")}/時` : "未設定";
+    case "custom": return "手動入力";
+    default: return "";
+  }
+}
+
+function getAvailableDayTypes(settings: any): DayTypeOption[] {
+  return ALL_DAY_TYPES.filter((opt) => {
+    if (opt.key === "weekday") return true;
+    if (opt.key === "weekend") return true;
+    if (opt.key === "holiday") return settings?.holidayHourlyWage != null;
+    if (opt.key === "night") return settings?.nightHourlyWage != null;
+    if (opt.key === "custom") return true;
+    return false;
+  });
+}
+
+function calcWage(
+  dayType: DayType,
+  customWage: number | null,
+  settings: any
+): number {
+  switch (dayType) {
+    case "custom": return customWage ?? 0;
+    case "holiday": return settings?.holidayHourlyWage != null ? Number(settings.holidayHourlyWage) : Number(settings?.hourlyWage ?? 1000);
+    case "night": return settings?.nightHourlyWage != null ? Number(settings.nightHourlyWage) : Number(settings?.hourlyWage ?? 1000);
+    case "weekend": return settings?.weekendHourlyWage != null ? Number(settings.weekendHourlyWage) : Number(settings?.hourlyWage ?? 1000);
+    default: return Number(settings?.hourlyWage ?? 1000);
+  }
+}
 
 export default function NewRecordScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +92,9 @@ export default function NewRecordScreen() {
   const [clockIn, setClockIn] = useState(now);
   const [clockOut, setClockOut] = useState("");
   const [breakMinutes, setBreakMinutes] = useState("");
+  const [dayType, setDayType] = useState<DayType>(inferDayType(today));
+  const [customWage, setCustomWage] = useState("");
+  const [shiftMemo, setShiftMemo] = useState("");
   const [note, setNote] = useState("");
 
   const { data: settings } = useQuery({
@@ -41,11 +102,17 @@ export default function NewRecordScreen() {
     queryFn: getUserSettings,
   });
 
-  React.useEffect(() => {
+  const availableTypes = getAvailableDayTypes(settings);
+
+  useEffect(() => {
     if (settings) {
       setBreakMinutes(String(settings.breakMinutes));
     }
   }, [settings]);
+
+  useEffect(() => {
+    setDayType(inferDayType(date));
+  }, [date]);
 
   const mutation = useMutation({
     mutationFn: createAttendanceRecord,
@@ -72,11 +139,21 @@ export default function NewRecordScreen() {
       Alert.alert("入力エラー", "退勤時間を正しく入力してください。");
       return;
     }
+    if (dayType === "custom") {
+      const w = parseInt(customWage);
+      if (isNaN(w) || w <= 0) {
+        Alert.alert("入力エラー", "その他の時給を入力してください。");
+        return;
+      }
+    }
     mutation.mutate({
       date,
       clockIn,
       clockOut: clockOut || null,
       breakMinutes: parseInt(breakMinutes) || 0,
+      dayType,
+      customHourlyWage: dayType === "custom" ? (parseInt(customWage) || null) : null,
+      shiftMemo: shiftMemo.trim() || null,
       note: note.trim() || null,
     });
   };
@@ -84,6 +161,9 @@ export default function NewRecordScreen() {
   const { topExtra, bottomExtra } = useWebPad();
   const topPad = insets.top + topExtra;
   const bottomPad = insets.bottom + bottomExtra;
+
+  const effectiveWage = calcWage(dayType, parseInt(customWage) || null, settings);
+  const wageRanges: WageRange[] = settings?.wageRanges ?? [];
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -124,8 +204,10 @@ export default function NewRecordScreen() {
             label="今日・今"
             icon="zap"
             onPress={() => {
-              setDate(getCurrentDateStr());
+              const d = getCurrentDateStr();
+              setDate(d);
               setClockIn(getCurrentTimeStr());
+              setDayType(inferDayType(d));
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           />
@@ -139,6 +221,7 @@ export default function NewRecordScreen() {
           />
         </View>
 
+        {/* Date */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>日付</Text>
           <View style={styles.card}>
@@ -148,14 +231,69 @@ export default function NewRecordScreen() {
           </View>
         </View>
 
+        {/* Day Type */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>日種別</Text>
+          <View style={styles.dayTypeGrid}>
+            {availableTypes.map((opt) => {
+              const selected = dayType === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  style={({ pressed }) => [
+                    styles.dayTypeChip,
+                    selected && { backgroundColor: opt.color + "20", borderColor: opt.color },
+                    { opacity: pressed ? 0.75 : 1 },
+                  ]}
+                  onPress={() => {
+                    setDayType(opt.key);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Feather name={opt.icon as any} size={13} color={selected ? opt.color : C.textMuted} />
+                  <Text style={[styles.dayTypeChipText, { color: selected ? opt.color : C.textMuted }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {dayType === "custom" ? (
+            <View style={[styles.card, { marginTop: 8 }]}>
+              <FormRow label="時給" icon="dollar-sign">
+                <View style={styles.inputWithUnit}>
+                  <Text style={styles.currencyPrefix}>¥</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={customWage}
+                    onChangeText={setCustomWage}
+                    placeholder="1000"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.unit}>/時</Text>
+                </View>
+              </FormRow>
+            </View>
+          ) : (
+            <View style={styles.wageHintRow}>
+              <Feather name="info" size={11} color={C.textMuted} />
+              <Text style={styles.wageHint}>
+                適用時給：{getWageLabel(dayType, settings)}
+                {wageRanges.length > 0 ? "（時間帯別設定あり）" : ""}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Time */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>時間</Text>
           <View style={styles.card}>
             <FormRow label="出勤" icon="log-in" iconColor={C.success}>
-              <TimeInput
-                value={clockIn}
-                onChange={setClockIn}
-              />
+              <TimeInput value={clockIn} onChange={setClockIn} />
             </FormRow>
             <View style={styles.divider} />
             <FormRow label="退勤" icon="log-out" iconColor={C.danger}>
@@ -185,6 +323,25 @@ export default function NewRecordScreen() {
           </View>
         </View>
 
+        {/* Shift Memo */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>シフトメモ（任意）</Text>
+          <View style={styles.card}>
+            <TextInput
+              style={styles.noteInput}
+              value={shiftMemo}
+              onChangeText={setShiftMemo}
+              placeholder={`例：${date.slice(5).replace("-", "/")} は ${clockIn || "09:00"}〜${clockOut || "18:00"} まで`}
+              placeholderTextColor={C.textMuted}
+              multiline
+              numberOfLines={2}
+              returnKeyType="default"
+            />
+          </View>
+          <Text style={styles.hintText}>シフト表の控えなどを入力できます</Text>
+        </View>
+
+        {/* Note */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>メモ（任意）</Text>
           <View style={styles.card}>
@@ -206,7 +363,8 @@ export default function NewRecordScreen() {
             clockIn={clockIn}
             clockOut={clockOut}
             breakMinutes={parseInt(breakMinutes) || 0}
-            hourlyWage={settings?.hourlyWage || 1000}
+            baseWage={effectiveWage}
+            wageRanges={wageRanges}
           />
         )}
       </ScrollView>
@@ -218,12 +376,14 @@ function WorkPreview({
   clockIn,
   clockOut,
   breakMinutes,
-  hourlyWage,
+  baseWage,
+  wageRanges,
 }: {
   clockIn: string;
   clockOut: string;
   breakMinutes: number;
-  hourlyWage: number;
+  baseWage: number;
+  wageRanges: WageRange[];
 }) {
   function timeToMinutes(t: string): number {
     const [h, m] = t.split(":").map(Number);
@@ -231,15 +391,41 @@ function WorkPreview({
     return h * 60 + m;
   }
 
-  const totalMin = timeToMinutes(clockOut) - timeToMinutes(clockIn);
+  function minuteInRange(m: number, s: number, e: number): boolean {
+    if (s <= e) return m >= s && m < e;
+    return m >= s || m < e;
+  }
+
+  const startMin = timeToMinutes(clockIn);
+  let endMin = timeToMinutes(clockOut);
+  if (endMin <= startMin) endMin += 24 * 60;
+  const totalMin = endMin - startMin;
   const workMin = Math.max(0, totalMin - breakMinutes);
-  const salary = Math.round((workMin / 60) * hourlyWage);
 
   if (workMin <= 0) return null;
 
   const h = Math.floor(workMin / 60);
   const m = workMin % 60;
   const workStr = h > 0 ? (m > 0 ? `${h}時間${m}分` : `${h}時間`) : `${m}分`;
+
+  let salary: number;
+  if (wageRanges.length === 0) {
+    salary = Math.round((workMin / 60) * baseWage);
+  } else {
+    const parsed = wageRanges.map((r) => ({
+      startMin: timeToMinutes(r.start),
+      endMin: timeToMinutes(r.end),
+      wage: r.wage,
+    }));
+    let totalPay = 0;
+    for (let min = startMin; min < endMin; min++) {
+      const normalizedM = min % (24 * 60);
+      const rangeWage = parsed.find((r) => minuteInRange(normalizedM, r.startMin, r.endMin));
+      totalPay += (rangeWage ? rangeWage.wage : baseWage) / 60;
+    }
+    if (totalMin > 0 && workMin < totalMin) totalPay *= workMin / totalMin;
+    salary = Math.round(totalPay);
+  }
 
   return (
     <View style={styles.previewCard}>
@@ -385,6 +571,45 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 4,
   },
+  dayTypeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  dayTypeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: C.backgroundSecondary,
+    borderWidth: 1.5,
+    borderColor: C.border,
+  },
+  dayTypeChipText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  wageHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 8,
+    marginLeft: 4,
+  },
+  wageHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: C.textMuted,
+  },
+  hintText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: C.textMuted,
+    marginTop: 6,
+    marginLeft: 4,
+  },
   card: {
     backgroundColor: C.backgroundSecondary,
     borderRadius: 16,
@@ -427,7 +652,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     color: C.text,
     textAlign: "center",
-    width: 56,
+    width: 66,
     height: 36,
     backgroundColor: C.backgroundTertiary,
     borderRadius: 8,
@@ -440,6 +665,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  currencyPrefix: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: C.textSecondary,
+  },
   unit: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
@@ -451,7 +681,7 @@ const styles = StyleSheet.create({
     color: C.text,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    minHeight: 80,
+    minHeight: 70,
     textAlignVertical: "top",
   },
   previewCard: {

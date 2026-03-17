@@ -30,6 +30,16 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   return fetch(`${base}/api${path}`, { ...options, headers });
 }
 
+export type DayType = "weekday" | "weekend" | "holiday" | "night" | "custom";
+
+export interface WageRange {
+  id: string;
+  label: string;
+  start: string;
+  end: string;
+  wage: number;
+}
+
 export interface AttendanceRecord {
   id: string;
   userId: string;
@@ -39,6 +49,9 @@ export interface AttendanceRecord {
   breakMinutes: number;
   workMinutes: number;
   salaryEstimate: number;
+  dayType: DayType | null;
+  customHourlyWage: number | null;
+  shiftMemo: string | null;
   note: string | null;
   createdAt: string;
 }
@@ -55,6 +68,9 @@ export interface UserSettings {
   userId: string;
   hourlyWage: number;
   weekendHourlyWage: number | null;
+  nightHourlyWage: number | null;
+  holidayHourlyWage: number | null;
+  wageRanges: WageRange[];
   breakMinutes: number;
   workplaceName: string | null;
 }
@@ -79,6 +95,9 @@ export async function createAttendanceRecord(data: {
   clockIn: string;
   clockOut?: string | null;
   breakMinutes?: number;
+  dayType?: DayType | null;
+  customHourlyWage?: number | null;
+  shiftMemo?: string | null;
   note?: string | null;
 }): Promise<AttendanceRecord> {
   const res = await apiFetch("/attendance", {
@@ -98,6 +117,9 @@ export async function updateAttendanceRecord(
     clockIn?: string;
     clockOut?: string | null;
     breakMinutes?: number;
+    dayType?: DayType | null;
+    customHourlyWage?: number | null;
+    shiftMemo?: string | null;
     note?: string | null;
   }
 ): Promise<AttendanceRecord> {
@@ -123,6 +145,9 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function updateUserSettings(data: {
   hourlyWage?: number;
   weekendHourlyWage?: number | null;
+  nightHourlyWage?: number | null;
+  holidayHourlyWage?: number | null;
+  wageRanges?: WageRange[] | null;
   breakMinutes?: number;
   workplaceName?: string | null;
 }): Promise<UserSettings> {
