@@ -133,3 +133,74 @@ export async function updateUserSettings(data: {
   if (!res.ok) throw new Error("Failed to update settings");
   return res.json();
 }
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  userId: string;
+  nickname: string;
+  friendCode: string;
+  showDays: boolean;
+  showHours: boolean;
+  pinnedBadgeIds: string[];
+}
+
+export async function getProfile(): Promise<UserProfile> {
+  const res = await apiFetch("/profile");
+  if (!res.ok) throw new Error("Failed to fetch profile");
+  return res.json();
+}
+
+export async function updateProfile(data: Partial<Omit<UserProfile, "userId" | "friendCode">>): Promise<UserProfile> {
+  const res = await apiFetch("/profile", { method: "PUT", body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
+// ─── Friends ──────────────────────────────────────────────────────────────────
+
+export interface FriendData {
+  friendshipId: string;
+  userId: string;
+  nickname: string;
+  showDays: boolean;
+  showHours: boolean;
+  pinnedBadgeIds: string[];
+  totalWorkMinutes: number | null;
+  totalWorkDays: number | null;
+}
+
+export interface PendingRequest {
+  friendshipId: string;
+  userId: string;
+  nickname: string;
+}
+
+export interface FriendsResponse {
+  friends: FriendData[];
+  pendingRequests: PendingRequest[];
+}
+
+export async function getFriends(month?: string): Promise<FriendsResponse> {
+  const q = month ? `?month=${month}` : "";
+  const res = await apiFetch(`/friends${q}`);
+  if (!res.ok) throw new Error("Failed to fetch friends");
+  return res.json();
+}
+
+export async function addFriendByCode(code: string): Promise<{ targetNickname: string }> {
+  const res = await apiFetch("/friends/add", { method: "POST", body: JSON.stringify({ code }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to add friend");
+  return data;
+}
+
+export async function acceptFriendRequest(friendshipId: string): Promise<void> {
+  const res = await apiFetch(`/friends/${friendshipId}/accept`, { method: "PUT" });
+  if (!res.ok) throw new Error("Failed to accept request");
+}
+
+export async function removeFriend(friendshipId: string): Promise<void> {
+  const res = await apiFetch(`/friends/${friendshipId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to remove friend");
+}

@@ -18,8 +18,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
-import { getUserSettings, updateUserSettings } from "@/lib/api";
+import { getUserSettings, updateUserSettings, getProfile, updateProfile } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { HOUR_BADGES, DAY_BADGES, getEarnedBadges, type Badge } from "@/lib/badges";
 
 const C = Colors.light;
 
@@ -35,10 +36,26 @@ export default function SettingsScreen() {
   const [workplaceName, setWorkplaceName] = useState("");
   const [edited, setEdited] = useState(false);
 
+  const [nickname, setNickname] = useState("");
+  const [pinnedBadgeIds, setPinnedBadgeIds] = useState<string[]>([]);
+  const [profileEdited, setProfileEdited] = useState(false);
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
     queryFn: getUserSettings,
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setNickname(profile.nickname ?? "");
+      setPinnedBadgeIds(profile.pinnedBadgeIds ?? []);
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (settings) {
@@ -60,6 +77,31 @@ export default function SettingsScreen() {
       Alert.alert("エラー", "設定の保存に失敗しました。");
     },
   });
+
+  const profileSaveMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["profile"], updated);
+      setProfileEdited(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => {
+      Alert.alert("エラー", "プロフィールの保存に失敗しました。");
+    },
+  });
+
+  const handleProfileSave = () => {
+    profileSaveMutation.mutate({ nickname: nickname.trim(), pinnedBadgeIds });
+  };
+
+  function toggleBadge(badgeId: string) {
+    setPinnedBadgeIds((prev) => {
+      if (prev.includes(badgeId)) return prev.filter((id) => id !== badgeId);
+      if (prev.length >= 6) return prev;
+      return [...prev, badgeId];
+    });
+    setProfileEdited(true);
+  }
 
   const handleSave = () => {
     const wage = parseInt(hourlyWage);
@@ -232,6 +274,72 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {/* Social Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>ソーシャル設定</Text>
+          <View style={styles.card}>
+            <SettingRow label="ニックネーム" icon="award">
+              <TextInput
+                style={[styles.input, { flex: 1, textAlign: "right" }]}
+                value={nickname}
+                onChangeText={(v) => { setNickname(v); setProfileEdited(true); }}
+                placeholder="未設定"
+                placeholderTextColor={C.textMuted}
+                maxLength={32}
+                returnKeyType="done"
+              />
+            </SettingRow>
+          </View>
+          <Text style={styles.hint}>フレンドに表示される名前です</Text>
+        </View>
+
+        {/* Pinned Badges */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>表示バッジ（最大6個）</Text>
+          <View style={styles.card}>
+            <Text style={styles.badgePickerLabel}>時間バッジ</Text>
+            <BadgePicker
+              badges={HOUR_BADGES}
+              selected={pinnedBadgeIds}
+              color={C.tint}
+              muted={C.tintMuted}
+              onToggle={toggleBadge}
+            />
+            <View style={styles.divider} />
+            <Text style={styles.badgePickerLabel}>日数バッジ</Text>
+            <BadgePicker
+              badges={DAY_BADGES}
+              selected={pinnedBadgeIds}
+              color={C.success}
+              muted={C.successMuted}
+              onToggle={toggleBadge}
+            />
+          </View>
+          <Text style={styles.hint}>選んだバッジがフレンドの画面に表示されます</Text>
+        </View>
+
+        {profileEdited && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveButton,
+                { opacity: pressed || profileSaveMutation.isPending ? 0.85 : 1 },
+              ]}
+              onPress={handleProfileSave}
+              disabled={profileSaveMutation.isPending}
+            >
+              {profileSaveMutation.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Feather name="check" size={18} color="#fff" />
+                  <Text style={styles.saveButtonText}>プロフィールを保存</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        )}
+
         {/* Logout */}
         <View style={styles.section}>
           <View style={styles.card}>
@@ -265,6 +373,47 @@ function SettingRow({
         <Text style={styles.settingLabel}>{label}</Text>
       </View>
       <View style={styles.settingRight}>{children}</View>
+    </View>
+  );
+}
+
+function BadgePicker({
+  badges,
+  selected,
+  color,
+  muted,
+  onToggle,
+}: {
+  badges: Badge[];
+  selected: string[];
+  color: string;
+  muted: string;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <View style={styles.badgePickerGrid}>
+      {badges.map((b) => {
+        const isSelected = selected.includes(b.id);
+        const disabled = !isSelected && selected.length >= 6;
+        return (
+          <Pressable
+            key={b.id}
+            style={({ pressed }) => [
+              styles.badgePickerItem,
+              isSelected
+                ? { backgroundColor: muted, borderColor: color }
+                : { backgroundColor: C.backgroundTertiary, borderColor: C.border },
+              { opacity: pressed || disabled ? 0.5 : 1 },
+            ]}
+            onPress={() => onToggle(b.id)}
+            disabled={disabled}
+          >
+            <Text style={[styles.badgePickerText, { color: isSelected ? color : C.textMuted }]}>
+              {b.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -428,5 +577,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_500Medium",
     color: C.danger,
+  },
+  hint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: C.textMuted,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  badgePickerLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: C.textSecondary,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  badgePickerGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  badgePickerItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  badgePickerText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
 });
