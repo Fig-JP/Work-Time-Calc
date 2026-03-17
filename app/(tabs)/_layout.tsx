@@ -33,6 +33,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
         <Label>履歴</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="social">
+        <Icon sf={{ default: "rosette", selected: "rosette" }} />
+        <Label>ソーシャル</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
         <Label>設定</Label>
@@ -48,6 +52,7 @@ function TabIcon({ name, color, size = 22 }: { name: string; color: string; size
       const sfMap: Record<string, string> = {
         home: "house",
         list: "list.bullet",
+        award: "rosette",
         settings: "gearshape",
       };
       if (sfMap[name]) {
@@ -100,6 +105,13 @@ function ClassicTabLayout() {
         options={{
           title: "履歴",
           tabBarIcon: ({ color }) => <TabIcon name="list" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="social"
+        options={{
+          title: "ソーシャル",
+          tabBarIcon: ({ color }) => <TabIcon name="award" color={color} />,
         }}
       />
       <Tabs.Screen
