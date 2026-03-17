@@ -74,6 +74,13 @@ jobs:
               -e "s|url(/assets/|url(/Work-Time-Calc/assets/|g" \
               "$f"
           done
+          # Fix viewport for Android PWA: prevent zoom, cover notch area
+          find dist -name "*.html" | while read f; do
+            sed -i \
+              -e 's|content="width=device-width, initial-scale=1"|content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"|g' \
+              -e 's|content="width=device-width,initial-scale=1"|content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"|g' \
+              "$f"
+          done
           cp dist/index.html dist/404.html
 
       - name: Setup Pages

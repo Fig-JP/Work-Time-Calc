@@ -30,7 +30,7 @@
       "baseUrl": "/Work-Time-Calc",
       "themeColor": "#2563EB",
       "backgroundColor": "#2563EB",
-      "display": "standalone",
+      "display": "fullscreen",
       "orientation": "portrait",
       "shortName": "勤怠管理",
       "description": "出退勤・給料かんたん管理アプリ"
