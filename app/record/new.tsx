@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { createAttendanceRecord, getUserSettings } from "@/lib/api";
 import { getCurrentDateStr, getCurrentTimeStr } from "@/lib/utils";
+import { DateInput, TimeInput } from "@/components/DateTimeInputs";
 
 const C = Colors.light;
 
@@ -59,15 +60,15 @@ export default function NewRecordScreen() {
 
   const handleSave = () => {
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      Alert.alert("入力エラー", "日付を正しく入力してください（YYYY-MM-DD）。");
+      Alert.alert("入力エラー", "日付を正しく入力してください。");
       return;
     }
     if (!clockIn.match(/^\d{2}:\d{2}$/)) {
-      Alert.alert("入力エラー", "出勤時間を正しく入力してください（HH:MM）。");
+      Alert.alert("入力エラー", "出勤時間を正しく入力してください。");
       return;
     }
     if (clockOut && !clockOut.match(/^\d{2}:\d{2}$/)) {
-      Alert.alert("入力エラー", "退勤時間を正しく入力してください（HH:MM）。");
+      Alert.alert("入力エラー", "退勤時間を正しく入力してください。");
       return;
     }
     mutation.mutate({
@@ -84,10 +85,8 @@ export default function NewRecordScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
-      {/* Modal Handle */}
       <View style={styles.handle} />
 
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
@@ -129,7 +128,7 @@ export default function NewRecordScreen() {
             }}
           />
           <QuickButton
-            label="出勤のみ"
+            label="退勤をクリア"
             icon="log-in"
             onPress={() => {
               setClockOut("");
@@ -139,17 +138,10 @@ export default function NewRecordScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>基本情報</Text>
+          <Text style={styles.sectionLabel}>日付</Text>
           <View style={styles.card}>
             <FormRow label="日付" icon="calendar">
-              <TextInput
-                style={styles.input}
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={C.textMuted}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
-              />
+              <DateInput value={date} onChange={setDate} />
             </FormRow>
           </View>
         </View>
@@ -158,24 +150,18 @@ export default function NewRecordScreen() {
           <Text style={styles.sectionLabel}>時間</Text>
           <View style={styles.card}>
             <FormRow label="出勤" icon="log-in" iconColor={C.success}>
-              <TextInput
-                style={styles.input}
+              <TimeInput
                 value={clockIn}
-                onChangeText={setClockIn}
-                placeholder="HH:MM"
-                placeholderTextColor={C.textMuted}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
+                onChange={setClockIn}
               />
             </FormRow>
             <View style={styles.divider} />
             <FormRow label="退勤" icon="log-out" iconColor={C.danger}>
-              <TextInput
-                style={styles.input}
+              <TimeInput
                 value={clockOut}
-                onChangeText={setClockOut}
+                onChange={setClockOut}
                 placeholder="未入力（勤務中）"
-                placeholderTextColor={C.textMuted}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
+                allowEmpty
               />
             </FormRow>
             <View style={styles.divider} />
@@ -188,6 +174,8 @@ export default function NewRecordScreen() {
                   placeholder="60"
                   placeholderTextColor={C.textMuted}
                   keyboardType="number-pad"
+                  maxLength={3}
+                  selectTextOnFocus
                 />
                 <Text style={styles.unit}>分</Text>
               </View>
@@ -211,7 +199,6 @@ export default function NewRecordScreen() {
           </View>
         </View>
 
-        {/* Work time preview */}
         {clockIn && clockOut && (
           <WorkPreview
             clockIn={clockIn}
@@ -415,7 +402,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     minHeight: 52,
   },
   formLeft: {
@@ -434,16 +421,22 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   input: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
     color: C.text,
-    textAlign: "right",
-    minWidth: 80,
+    textAlign: "center",
+    width: 56,
+    height: 36,
+    backgroundColor: C.backgroundTertiary,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 0,
   },
   inputWithUnit: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   unit: {
     fontSize: 13,

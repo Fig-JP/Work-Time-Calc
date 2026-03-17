@@ -19,6 +19,7 @@ import Colors from "@/constants/colors";
 import { getAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, getUserSettings } from "@/lib/api";
 import type { AttendanceRecord } from "@/lib/api";
 import { formatDate, formatMinutes, formatCurrency } from "@/lib/utils";
+import { TimeInput } from "@/components/DateTimeInputs";
 
 const C = Colors.light;
 
@@ -88,11 +89,11 @@ export default function EditRecordScreen() {
 
   const handleSave = () => {
     if (!clockIn.match(/^\d{2}:\d{2}$/)) {
-      Alert.alert("入力エラー", "出勤時間を正しく入力してください（HH:MM）。");
+      Alert.alert("入力エラー", "出勤時間を正しく入力してください。");
       return;
     }
     if (clockOut && !clockOut.match(/^\d{2}:\d{2}$/)) {
-      Alert.alert("入力エラー", "退勤時間を正しく入力してください（HH:MM）。");
+      Alert.alert("入力エラー", "退勤時間を正しく入力してください。");
       return;
     }
     updateMutation.mutate({
@@ -178,36 +179,29 @@ export default function EditRecordScreen() {
           <Text style={styles.sectionLabel}>時間</Text>
           <View style={styles.card}>
             <FormRow label="出勤" icon="log-in" iconColor={C.success}>
-              <TextInput
-                style={styles.input}
-                value={clockIn}
-                onChangeText={setClockIn}
-                placeholder="HH:MM"
-                placeholderTextColor={C.textMuted}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
-              />
+              <TimeInput value={clockIn} onChange={setClockIn} />
             </FormRow>
             <View style={styles.divider} />
             <FormRow label="退勤" icon="log-out" iconColor={C.danger}>
-              <TextInput
-                style={styles.input}
+              <TimeInput
                 value={clockOut}
-                onChangeText={setClockOut}
+                onChange={setClockOut}
                 placeholder="未入力（勤務中）"
-                placeholderTextColor={C.textMuted}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
+                allowEmpty
               />
             </FormRow>
             <View style={styles.divider} />
             <FormRow label="休憩" icon="coffee" iconColor={C.warning}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.breakInput}
                   value={breakMinutes}
                   onChangeText={setBreakMinutes}
                   placeholder="0"
                   placeholderTextColor={C.textMuted}
                   keyboardType="number-pad"
+                  maxLength={3}
+                  selectTextOnFocus
                 />
                 <Text style={styles.unit}>分</Text>
               </View>
@@ -215,7 +209,6 @@ export default function EditRecordScreen() {
           </View>
         </View>
 
-        {/* Preview */}
         {clockIn && clockOut && workMin > 0 && (
           <View style={styles.previewCard}>
             <View style={styles.previewRow}>
@@ -247,7 +240,6 @@ export default function EditRecordScreen() {
           </View>
         </View>
 
-        {/* Delete */}
         <View style={{ paddingHorizontal: 20 }}>
           <Pressable
             style={({ pressed }) => [styles.deleteBtn, { opacity: pressed || deleteMutation.isPending ? 0.7 : 1 }]}
@@ -378,7 +370,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     minHeight: 52,
   },
   formLeft: {
@@ -396,12 +388,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "flex-end",
   },
-  input: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+  breakInput: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
     color: C.text,
-    textAlign: "right",
-    minWidth: 80,
+    textAlign: "center",
+    width: 56,
+    height: 36,
+    backgroundColor: C.backgroundTertiary,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 0,
   },
   unit: {
     fontSize: 13,
