@@ -48,12 +48,27 @@ jobs:
       - name: Fix asset paths for GitHub Pages subpath
         run: |
           BASE="/Work-Time-Calc"
+          # Fix HTML files
           find dist -name "*.html" | while read f; do
             sed -i \
               -e "s|href=\"/_expo/|href=\"${BASE}/_expo/|g" \
               -e "s|src=\"/_expo/|src=\"${BASE}/_expo/|g" \
               -e "s|href=\"/favicon.ico\"|href=\"${BASE}/favicon.ico\"|g" \
               -e "s|href=\"/manifest.json\"|href=\"${BASE}/manifest.json\"|g" \
+              "$f"
+          done
+          # Fix JS bundles: replace root-relative asset/expo paths with baseUrl prefix
+          find dist/_expo/static/js -name "*.js" | while read f; do
+            sed -i \
+              -e "s|\"/_expo/|\"${BASE}/_expo/|g" \
+              -e "s|\"/assets/|\"/Work-Time-Calc/assets/|g" \
+              "$f"
+          done
+          # Fix CSS files
+          find dist/_expo/static/css -name "*.css" | while read f; do
+            sed -i \
+              -e "s|url(/_expo/|url(/Work-Time-Calc/_expo/|g" \
+              -e "s|url(/assets/|url(/Work-Time-Calc/assets/|g" \
               "$f"
           done
           cp dist/index.html dist/404.html

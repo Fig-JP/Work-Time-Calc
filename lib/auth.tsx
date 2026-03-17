@@ -131,13 +131,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isWeb) return;
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+    const authToken = params.get("auth_token");
+    const isPopup = params.get("popup") === "1";
+    if (authToken && isPopup) {
+      storeToken(authToken).then(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("auth_token");
+        url.searchParams.delete("popup");
+        window.history.replaceState({}, "", url.toString());
+        window.close();
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
   useEffect(() => {
     if (!isWeb) return;
 
-    const handler = async (event: MessageEvent) => {
+    const msgHandler = async (event: MessageEvent) => {
       if (event.data?.type === "AUTH_TOKEN" && event.data?.token) {
         const token = event.data.token as string;
         await storeToken(token);
@@ -146,8 +162,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
+    const storageHandler = async (event: StorageEvent) => {
+      if (event.key === AUTH_TOKEN_KEY && event.newValue) {
+        setIsLoading(true);
+        await fetchUser();
+      }
+    };
+
+    window.addEventListener("message", msgHandler);
+    window.addEventListener("storage", storageHandler);
+    return () => {
+      window.removeEventListener("message", msgHandler);
+      window.removeEventListener("storage", storageHandler);
+    };
   }, [fetchUser]);
 
   useEffect(() => {
