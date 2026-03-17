@@ -67,6 +67,42 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
+      {/* Header - fixed outside ScrollView */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>こんにちは</Text>
+          <Text style={styles.userName}>{displayName}</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.85 : 1 }]}
+          onPress={handleNewRecord}
+        >
+          <Feather name="plus" size={22} color="#fff" />
+        </Pressable>
+      </View>
+
+      {/* Month Selector - fixed outside ScrollView */}
+      <View style={styles.monthSelector}>
+        <Pressable
+          style={({ pressed }) => [styles.monthArrow, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={() => setSelectedMonth(getPrevMonth(selectedMonth))}
+        >
+          <Feather name="chevron-left" size={22} color={C.tint} />
+        </Pressable>
+        <Text style={styles.monthText}>{formatMonth(selectedMonth)}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.monthArrow, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={() => setSelectedMonth(getNextMonth(selectedMonth))}
+          disabled={selectedMonth >= getCurrentMonth()}
+        >
+          <Feather
+            name="chevron-right"
+            size={22}
+            color={selectedMonth >= getCurrentMonth() ? C.textMuted : C.tint}
+          />
+        </Pressable>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPad + 20 }}
@@ -78,42 +114,6 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>こんにちは</Text>
-            <Text style={styles.userName}>{displayName}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.85 : 1 }]}
-            onPress={handleNewRecord}
-          >
-            <Feather name="plus" size={22} color="#fff" />
-          </Pressable>
-        </View>
-
-        {/* Month Selector */}
-        <View style={styles.monthSelector}>
-          <Pressable
-            style={({ pressed }) => [styles.monthArrow, { opacity: pressed ? 0.6 : 1 }]}
-            onPress={() => setSelectedMonth(getPrevMonth(selectedMonth))}
-          >
-            <Feather name="chevron-left" size={22} color={C.tint} />
-          </Pressable>
-          <Text style={styles.monthText}>{formatMonth(selectedMonth)}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.monthArrow, { opacity: pressed ? 0.6 : 1 }]}
-            onPress={() => setSelectedMonth(getNextMonth(selectedMonth))}
-            disabled={selectedMonth >= getCurrentMonth()}
-          >
-            <Feather
-              name="chevron-right"
-              size={22}
-              color={selectedMonth >= getCurrentMonth() ? C.textMuted : C.tint}
-            />
-          </Pressable>
-        </View>
-
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={C.tint} />
