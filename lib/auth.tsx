@@ -21,6 +21,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAuthReady: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  isAuthReady: false,
   login: async () => {},
   logout: async () => {},
 });
@@ -83,7 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const popupRef = useRef<Window | null>(null);
 
   const discovery = AuthSession.useAutoDiscovery(ISSUER_URL);
-  const redirectUri = AuthSession.makeRedirectUri();
+  const redirectUri = AuthSession.makeRedirectUri({
+    native: "timecard://oauth/callback",
+  });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
@@ -272,6 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        isAuthReady: request !== null,
         login,
         logout,
       }}

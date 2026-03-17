@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +16,7 @@ import Colors from "@/constants/colors";
 const C = Colors.light;
 
 export default function LoginScreen() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, isAuthReady } = useAuth();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -48,9 +49,9 @@ export default function LoginScreen() {
             { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
           onPress={login}
-          disabled={isLoading}
+          disabled={isLoading || (Platform.OS !== "web" && !isAuthReady)}
         >
-          {isLoading ? (
+          {isLoading || (Platform.OS !== "web" && !isAuthReady) ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>
