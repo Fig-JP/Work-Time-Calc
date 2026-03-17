@@ -52,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4a3b1784-e453-4ffc-9b3c-b21fcd955b3f"
+      }
+    },
+    "owner": "figjp"
   }
 }
