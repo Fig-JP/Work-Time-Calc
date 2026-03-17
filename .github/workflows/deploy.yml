@@ -65,6 +65,7 @@ jobs:
               -e "s|\"/_expo/|\"${BASE}/_expo/|g" \
               -e "s|\"/assets/assets/|\"/Work-Time-Calc/assets/|g" \
               -e "s|\"/assets/__node_modules/|\"/Work-Time-Calc/assets/__node_modules/|g" \
+              -e "s|\"/assets/node_modules/|\"/Work-Time-Calc/assets/node_modules/|g" \
               "$f"
           done
           # Fix CSS files
@@ -73,6 +74,7 @@ jobs:
               -e "s|url(/_expo/|url(/Work-Time-Calc/_expo/|g" \
               -e "s|url(/assets/assets/|url(/Work-Time-Calc/assets/|g" \
               -e "s|url(/assets/__node_modules/|url(/Work-Time-Calc/assets/__node_modules/|g" \
+              -e "s|url(/assets/node_modules/|url(/Work-Time-Calc/assets/node_modules/|g" \
               "$f"
           done
           cp dist/index.html dist/404.html

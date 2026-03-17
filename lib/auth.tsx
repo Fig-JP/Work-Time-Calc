@@ -136,15 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authToken = params.get("auth_token");
     const isPopup = params.get("popup") === "1";
     if (authToken && isPopup) {
-      storeToken(authToken).then(() => {
+      storeToken(authToken).then(async () => {
         const url = new URL(window.location.href);
         url.searchParams.delete("auth_token");
         url.searchParams.delete("popup");
         window.history.replaceState({}, "", url.toString());
         window.close();
+        await fetchUser();
       });
     }
-  }, []);
+  }, [fetchUser]);
 
   useEffect(() => {
     fetchUser();
@@ -232,6 +233,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loginUrl = `${apiBase}/api/login?returnTo=${encodeURIComponent("/__popup")}`;
       const popup = window.open(loginUrl, "replit_auth", "popup=yes,width=520,height=640,left=100,top=100");
       popupRef.current = popup;
+      if (popup) {
+        const poll = setInterval(async () => {
+          if (popup.closed) {
+            clearInterval(poll);
+            popupRef.current = null;
+            await fetchUser();
+          }
+        }, 500);
+      }
       return;
     }
     try {
@@ -239,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Login error:", err);
     }
-  }, [promptAsync]);
+  }, [promptAsync, fetchUser]);
 
   const logout = useCallback(async () => {
     await clearToken();
