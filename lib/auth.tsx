@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -7,7 +6,6 @@ import { Platform } from "react-native";
 WebBrowser.maybeCompleteAuthSession();
 
 const AUTH_TOKEN_KEY = "auth_session_token";
-const ISSUER_URL = process.env.EXPO_PUBLIC_ISSUER_URL ?? "https://replit.com/oidc";
 
 interface User {
   id: string;
@@ -30,7 +28,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
-  isAuthReady: false,
+  isAuthReady: true,
   login: async () => {},
   logout: async () => {},
 });
@@ -47,11 +45,7 @@ function getApiBaseUrl(): string {
       return FALLBACK_API;
     }
   }
-  return "";
-}
-
-function getClientId(): string {
-  return process.env.EXPO_PUBLIC_REPL_ID || "";
+  return FALLBACK_API;
 }
 
 const isWeb = Platform.OS === "web";
@@ -83,21 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const popupRef = useRef<Window | null>(null);
-
-  const discovery = AuthSession.useAutoDiscovery(ISSUER_URL);
-  const redirectUri = AuthSession.makeRedirectUri({
-    native: "timecard://oauth/callback",
-  });
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: getClientId(),
-      scopes: ["openid", "email", "profile", "offline_access"],
-      redirectUri,
-      prompt: AuthSession.Prompt.Login,
-    },
-    discovery,
-  );
 
   const fetchUser = useCallback(async () => {
     try {
@@ -184,68 +163,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchUser]);
 
-  useEffect(() => {
-    if (isWeb) return;
-    if (response?.type !== "success" || !request?.codeVerifier) return;
-
-    const { code, state } = response.params;
-
-    (async () => {
-      try {
-        const apiBase = getApiBaseUrl();
-        if (!apiBase) {
-          console.error("API base URL is not configured.");
-          setIsLoading(false);
-          return;
-        }
-
-        setIsLoading(true);
-        const exchangeRes = await fetch(`${apiBase}/api/mobile-auth/token-exchange`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code,
-            code_verifier: request.codeVerifier,
-            redirect_uri: redirectUri,
-            state,
-            nonce: request.nonce,
-          }),
-        });
-
-        if (!exchangeRes.ok) {
-          console.error("Token exchange failed:", exchangeRes.status, await exchangeRes.text());
-          setIsLoading(false);
-          return;
-        }
-
-        const data = await exchangeRes.json();
-        if (data.token) {
-          await storeToken(data.token);
-          await fetchUser();
-        } else {
-          console.error("No token in response:", data);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error("Token exchange error:", err);
-        setIsLoading(false);
-      }
-    })();
-  }, [response, request, redirectUri, fetchUser]);
-
   const login = useCallback(async () => {
+    const apiBase = getApiBaseUrl();
+
     if (isWeb) {
-      const apiBase = getApiBaseUrl();
       const loginUrl = `${apiBase}/api/login?returnTo=${encodeURIComponent("/__web_return")}`;
       window.location.href = loginUrl;
       return;
     }
+
     try {
-      await promptAsync();
+      const loginUrl = `${apiBase}/api/login?returnTo=${encodeURIComponent("/__mobile_return")}`;
+      const redirectUrl = "timecard://oauth/callback";
+
+      const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUrl);
+
+      if (result.type === "success" && result.url) {
+        const parsed = new URL(result.url);
+        const token = parsed.searchParams.get("auth_token");
+        if (token) {
+          await storeToken(token);
+          setIsLoading(true);
+          await fetchUser();
+        }
+      }
     } catch (err) {
       console.error("Login error:", err);
     }
-  }, [promptAsync]);
+  }, [fetchUser]);
 
   const logout = useCallback(async () => {
     await clearToken();
@@ -276,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
-        isAuthReady: request !== null,
+        isAuthReady: true,
         login,
         logout,
       }}
