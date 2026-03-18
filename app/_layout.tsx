@@ -8,16 +8,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/lib/auth";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 if (Platform.OS === "web" && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("/Work-Time-Calc/sw.js").catch(() => {});
@@ -43,6 +42,18 @@ function RootLayoutNav() {
   );
 }
 
+function KeyboardWrapper({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === "web") return <>{children}</>;
+  try {
+    const { KeyboardProvider } = require("react-native-keyboard-controller") as {
+      KeyboardProvider: React.ComponentType<{ children: React.ReactNode }>;
+    };
+    return <KeyboardProvider>{children}</KeyboardProvider>;
+  } catch {
+    return <>{children}</>;
+  }
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -52,11 +63,25 @@ export default function RootLayout() {
     feather: require("../assets/fonts/Feather.ttf"),
   });
 
+  const splashHidden = useRef(false);
+
+  const hideSplash = () => {
+    if (!splashHidden.current) {
+      splashHidden.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  };
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      hideSplash();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    const timer = setTimeout(hideSplash, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
@@ -66,9 +91,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
+              <KeyboardWrapper>
                 <RootLayoutNav />
-              </KeyboardProvider>
+              </KeyboardWrapper>
             </GestureHandlerRootView>
           </AuthProvider>
         </QueryClientProvider>
