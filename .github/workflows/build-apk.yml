@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK (EAS)
 
 on:
   workflow_dispatch:
@@ -9,11 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      EXPO_PUBLIC_DOMAIN: chu-tui-qin-guan-li-gei-yu-tui-ce--dazhixiaolin274.replit.app
-      EXPO_PUBLIC_REPL_ID: e9869198-145f-4f07-a6ca-98cef72cc705
-      EXPO_PUBLIC_ISSUER_URL: https://replit.com/oidc
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,27 +18,22 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
+      - name: Setup Expo + EAS
+        uses: expo/expo-github-action@v8
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
         run: npm install
 
-      - name: Expo prebuild (generate android/)
-        run: npx expo prebuild --platform android --no-install
-
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      - name: Build Debug APK
-        run: cd android && ./gradlew assembleDebug -PbundleInDebug=true --no-daemon
+      - name: Build APK with EAS
+        run: eas build --profile preview --platform android --non-interactive --output ./app-preview.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-preview
+          path: ./app-preview.apk
           retention-days: 7

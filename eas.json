@@ -8,24 +8,20 @@
       "android": {
         "buildType": "apk"
       },
-      "cache": {
-        "key": "timecard-preview-v1",
-        "paths": [
-          "~/.gradle/caches",
-          "~/.gradle/wrapper"
-        ]
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "chu-tui-qin-guan-li-gei-yu-tui-ce--dazhixiaolin274.replit.app",
+        "EXPO_PUBLIC_REPL_ID": "e9869198-145f-4f07-a6ca-98cef72cc705",
+        "EXPO_PUBLIC_ISSUER_URL": "https://replit.com/oidc"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "cache": {
-        "key": "timecard-prod-v1",
-        "paths": [
-          "~/.gradle/caches",
-          "~/.gradle/wrapper"
-        ]
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "chu-tui-qin-guan-li-gei-yu-tui-ce--dazhixiaolin274.replit.app",
+        "EXPO_PUBLIC_REPL_ID": "e9869198-145f-4f07-a6ca-98cef72cc705",
+        "EXPO_PUBLIC_ISSUER_URL": "https://replit.com/oidc"
       }
     }
   },
