@@ -29,11 +29,4 @@ jobs:
         run: npm install
 
       - name: Build APK with EAS
-        run: eas build --profile preview --platform android --non-interactive --output ./app-preview.apk
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-preview
-          path: ./app-preview.apk
-          retention-days: 7
+        run: eas build --profile preview --platform android --non-interactive
