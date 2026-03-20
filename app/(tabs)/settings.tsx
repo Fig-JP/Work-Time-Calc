@@ -18,22 +18,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { useTheme, type ThemePreference } from "@/lib/theme";
 import { getUserSettings, updateUserSettings, getProfile, updateProfile, getAttendanceSummary } from "@/lib/api";
 import type { WageRange } from "@/lib/api";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import { HOUR_BADGES, DAY_BADGES, getEarnedBadges, type Badge } from "@/lib/badges";
 
-const C = Colors.light;
-
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: string }[] = [
+  { value: "light", label: "ライト", icon: "sun" },
+  { value: "dark", label: "ダーク", icon: "moon" },
+  { value: "system", label: "端末と同期", icon: "smartphone" },
+];
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
+  const { preference: themePref, setPreference: setThemePref, C } = useTheme();
 
   const [hourlyWage, setHourlyWage] = useState("");
   const [weekendHourlyWage, setWeekendHourlyWage] = useState("");
@@ -214,95 +220,132 @@ export default function SettingsScreen() {
     ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
     : user?.email || "ユーザー";
 
+  const s = makeStyles(C);
+
   return (
-    <View style={[styles.container, { paddingTop: topPad }]}>
+    <View style={[s.container, { paddingTop: topPad }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPad + 24 }}
       >
-        <Text style={styles.title}>設定</Text>
+        <Text style={s.title}>設定</Text>
 
         {/* Profile */}
-        <View style={styles.section}>
-          <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Feather name="user" size={28} color={C.tint} />
+        <View style={s.section}>
+          <View style={s.card}>
+            <View style={s.profileCard}>
+              <View style={s.avatar}>
+                <Feather name="user" size={28} color={C.tint} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.profileName}>{displayName}</Text>
+                {user?.email && (
+                  <Text style={s.profileEmail}>{user.email}</Text>
+                )}
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>{displayName}</Text>
-              {user?.email && (
-                <Text style={styles.profileEmail}>{user.email}</Text>
-              )}
-            </View>
+          </View>
+        </View>
+
+        {/* Theme */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>アプリテーマ</Text>
+          <View style={s.themeRow}>
+            {THEME_OPTIONS.map((opt) => {
+              const active = themePref === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={({ pressed }) => [
+                    s.themeBtn,
+                    active && s.themeBtnActive,
+                    { opacity: pressed ? 0.75 : 1 },
+                  ]}
+                  onPress={() => {
+                    setThemePref(opt.value);
+                    Haptics.selectionAsync();
+                  }}
+                >
+                  <Feather
+                    name={opt.icon as any}
+                    size={18}
+                    color={active ? C.tint : C.textMuted}
+                  />
+                  <Text style={[s.themeBtnText, active && s.themeBtnTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
         {/* Wage Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>時給設定</Text>
-          <View style={styles.card}>
-            <SettingRow label="平日" icon="dollar-sign">
-              <WageInput value={hourlyWage} onChange={(v) => { setHourlyWage(v); setEdited(true); }} placeholder="1000" />
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>時給設定</Text>
+          <View style={s.card}>
+            <SettingRow label="平日" icon="dollar-sign" C={C}>
+              <WageInput value={hourlyWage} onChange={(v) => { setHourlyWage(v); setEdited(true); }} placeholder="1000" C={C} />
             </SettingRow>
-            <View style={styles.divider} />
-            <SettingRow label="休日" icon="sun">
-              <WageInput value={weekendHourlyWage} onChange={(v) => { setWeekendHourlyWage(v); setEdited(true); }} placeholder="未設定" />
+            <View style={s.divider} />
+            <SettingRow label="休日" icon="sun" C={C}>
+              <WageInput value={weekendHourlyWage} onChange={(v) => { setWeekendHourlyWage(v); setEdited(true); }} placeholder="未設定" C={C} />
             </SettingRow>
-            <View style={styles.divider} />
-            <SettingRow label="夜間" icon="moon">
-              <WageInput value={nightHourlyWage} onChange={(v) => { setNightHourlyWage(v); setEdited(true); }} placeholder="未設定" />
+            <View style={s.divider} />
+            <SettingRow label="夜間" icon="moon" C={C}>
+              <WageInput value={nightHourlyWage} onChange={(v) => { setNightHourlyWage(v); setEdited(true); }} placeholder="未設定" C={C} />
             </SettingRow>
-            <View style={styles.divider} />
-            <SettingRow label="祝日" icon="star">
-              <WageInput value={holidayHourlyWage} onChange={(v) => { setHolidayHourlyWage(v); setEdited(true); }} placeholder="未設定" />
+            <View style={s.divider} />
+            <SettingRow label="祝日" icon="star" C={C}>
+              <WageInput value={holidayHourlyWage} onChange={(v) => { setHolidayHourlyWage(v); setEdited(true); }} placeholder="未設定" C={C} />
             </SettingRow>
           </View>
-          <Text style={styles.hint}>打刻時に日種別を選択すると自動適用されます</Text>
+          <Text style={s.hint}>打刻時に日種別を選択すると自動適用されます</Text>
         </View>
 
         {/* Time-Range Wages */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionLabel}>時間帯別時給</Text>
+        <View style={s.section}>
+          <View style={s.sectionLabelRow}>
+            <Text style={s.sectionLabel}>時間帯別時給</Text>
             <Pressable
-              style={({ pressed }) => [styles.addRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [s.addRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={addWageRange}
             >
               <Feather name="plus" size={14} color={C.tint} />
-              <Text style={styles.addRangeBtnText}>追加</Text>
+              <Text style={s.addRangeBtnText}>追加</Text>
             </Pressable>
           </View>
 
           {wageRanges.length === 0 ? (
-            <View style={[styles.card, styles.emptyRangeCard]}>
+            <View style={[s.card, s.emptyRangeCard]}>
               <Feather name="clock" size={20} color={C.textMuted} />
-              <Text style={styles.emptyRangeText}>
+              <Text style={s.emptyRangeText}>
                 時間帯ごとに異なる時給を設定できます{"\n"}例：22:00〜05:00 → ¥1,250
               </Text>
             </View>
           ) : (
-            <View style={styles.rangesContainer}>
-              {wageRanges.map((range, idx) => (
-                <View key={range.id} style={styles.rangeCard}>
-                  <View style={styles.rangeHeader}>
+            <View style={s.rangesContainer}>
+              {wageRanges.map((range) => (
+                <View key={range.id} style={s.rangeCard}>
+                  <View style={s.rangeHeader}>
                     <TextInput
-                      style={styles.rangeLabelInput}
+                      style={s.rangeLabelInput}
                       value={range.label}
                       onChangeText={(v) => updateWageRange(range.id, "label", v)}
                       placeholder="ラベル（例：深夜帯）"
                       placeholderTextColor={C.textMuted}
                     />
                     <Pressable
-                      style={({ pressed }) => [styles.removeRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
+                      style={({ pressed }) => [s.removeRangeBtn, { opacity: pressed ? 0.7 : 1 }]}
                       onPress={() => removeWageRange(range.id)}
                     >
                       <Feather name="trash-2" size={15} color={C.danger} />
                     </Pressable>
                   </View>
-                  <View style={styles.rangeBody}>
-                    <View style={styles.rangeTimeRow}>
+                  <View style={s.rangeBody}>
+                    <View style={s.rangeTimeRow}>
                       <TextInput
-                        style={styles.rangeTimeInput}
+                        style={s.rangeTimeInput}
                         value={range.start}
                         onChangeText={(v) => updateWageRange(range.id, "start", v)}
                         placeholder="00:00"
@@ -310,9 +353,9 @@ export default function SettingsScreen() {
                         keyboardType="numbers-and-punctuation"
                         maxLength={5}
                       />
-                      <Text style={styles.rangeTimeSep}>〜</Text>
+                      <Text style={s.rangeTimeSep}>〜</Text>
                       <TextInput
-                        style={styles.rangeTimeInput}
+                        style={s.rangeTimeInput}
                         value={range.end}
                         onChangeText={(v) => updateWageRange(range.id, "end", v)}
                         placeholder="00:00"
@@ -321,10 +364,10 @@ export default function SettingsScreen() {
                         maxLength={5}
                       />
                     </View>
-                    <View style={styles.rangeWageRow}>
-                      <Text style={styles.currencyPrefix}>¥</Text>
+                    <View style={s.rangeWageRow}>
+                      <Text style={s.currencyPrefix}>¥</Text>
                       <TextInput
-                        style={styles.rangeWageInput}
+                        style={s.rangeWageInput}
                         value={range.wage > 0 ? String(range.wage) : ""}
                         onChangeText={(v) => {
                           const n = parseInt(v);
@@ -334,37 +377,37 @@ export default function SettingsScreen() {
                         placeholderTextColor={C.textMuted}
                         keyboardType="number-pad"
                       />
-                      <Text style={styles.unitSuffix}>/時</Text>
+                      <Text style={s.unitSuffix}>/時</Text>
                     </View>
                   </View>
                 </View>
               ))}
             </View>
           )}
-          <Text style={styles.hint}>時間帯と重なる部分は自動で分割計算されます（深夜は例：22:00〜05:00）</Text>
+          <Text style={s.hint}>時間帯と重なる部分は自動で分割計算されます（深夜は例：22:00〜05:00）</Text>
         </View>
 
         {/* Work Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>勤務設定</Text>
-          <View style={styles.card}>
-            <SettingRow label="デフォルト休憩時間" icon="coffee">
-              <View style={styles.inputRow}>
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>勤務設定</Text>
+          <View style={s.card}>
+            <SettingRow label="デフォルト休憩時間" icon="coffee" C={C}>
+              <View style={s.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={s.input}
                   value={breakMinutes}
                   onChangeText={(v) => { setBreakMinutes(v); setEdited(true); }}
                   keyboardType="number-pad"
                   placeholder="60"
                   placeholderTextColor={C.textMuted}
                 />
-                <Text style={styles.unitSuffix}>分</Text>
+                <Text style={s.unitSuffix}>分</Text>
               </View>
             </SettingRow>
-            <View style={styles.divider} />
-            <SettingRow label="職場名（任意）" icon="briefcase">
+            <View style={s.divider} />
+            <SettingRow label="職場名（任意）" icon="briefcase" C={C}>
               <TextInput
-                style={[styles.input, { flex: 1, textAlign: "right" }]}
+                style={[s.input, { flex: 1, textAlign: "right" }]}
                 value={workplaceName}
                 onChangeText={(v) => { setWorkplaceName(v); setEdited(true); }}
                 placeholder="未設定"
@@ -380,7 +423,7 @@ export default function SettingsScreen() {
           <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
             <Pressable
               style={({ pressed }) => [
-                styles.saveButton,
+                s.saveButton,
                 { opacity: pressed || saveMutation.isPending ? 0.85 : 1 },
               ]}
               onPress={handleSave}
@@ -391,7 +434,7 @@ export default function SettingsScreen() {
               ) : (
                 <>
                   <Feather name="check" size={18} color="#fff" />
-                  <Text style={styles.saveButtonText}>設定を保存</Text>
+                  <Text style={s.saveButtonText}>設定を保存</Text>
                 </>
               )}
             </Pressable>
@@ -399,12 +442,12 @@ export default function SettingsScreen() {
         )}
 
         {/* Social Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ソーシャル設定</Text>
-          <View style={styles.card}>
-            <SettingRow label="ニックネーム" icon="award">
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>ソーシャル設定</Text>
+          <View style={s.card}>
+            <SettingRow label="ニックネーム" icon="award" C={C}>
               <TextInput
-                style={[styles.input, { flex: 1, textAlign: "right" }]}
+                style={[s.input, { flex: 1, textAlign: "right" }]}
                 value={nickname}
                 onChangeText={(v) => { setNickname(v); setProfileEdited(true); }}
                 placeholder="未設定"
@@ -414,57 +457,59 @@ export default function SettingsScreen() {
               />
             </SettingRow>
           </View>
-          <Text style={styles.hint}>フレンドに表示される名前です</Text>
+          <Text style={s.hint}>フレンドに表示される名前です</Text>
         </View>
 
         {/* Pinned Badges */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>表示バッジ（最大6個）</Text>
-          <View style={styles.card}>
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>表示バッジ（最大6個）</Text>
+          <View style={s.card}>
             {earnedHourBadges.length === 0 && earnedDayBadges.length === 0 ? (
-              <View style={styles.noBadgeWrap}>
-                <Text style={styles.noBadgeText}>今月はまだバッジを獲得していません</Text>
+              <View style={s.noBadgeWrap}>
+                <Text style={s.noBadgeText}>今月はまだバッジを獲得していません</Text>
               </View>
             ) : (
               <>
                 {earnedHourBadges.length > 0 && (
                   <>
-                    <Text style={styles.badgePickerLabel}>時間バッジ</Text>
+                    <Text style={s.badgePickerLabel}>時間バッジ</Text>
                     <BadgePicker
                       badges={earnedHourBadges}
                       selected={pinnedBadgeIds}
                       color={C.tint}
                       muted={C.tintMuted}
                       onToggle={toggleBadge}
+                      C={C}
                     />
                   </>
                 )}
                 {earnedHourBadges.length > 0 && earnedDayBadges.length > 0 && (
-                  <View style={styles.divider} />
+                  <View style={s.divider} />
                 )}
                 {earnedDayBadges.length > 0 && (
                   <>
-                    <Text style={styles.badgePickerLabel}>日数バッジ</Text>
+                    <Text style={s.badgePickerLabel}>日数バッジ</Text>
                     <BadgePicker
                       badges={earnedDayBadges}
                       selected={pinnedBadgeIds}
                       color={C.success}
                       muted={C.successMuted}
                       onToggle={toggleBadge}
+                      C={C}
                     />
                   </>
                 )}
               </>
             )}
           </View>
-          <Text style={styles.hint}>選んだバッジがフレンドの画面に表示されます</Text>
+          <Text style={s.hint}>選んだバッジがフレンドの画面に表示されます</Text>
         </View>
 
         {profileEdited && (
           <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
             <Pressable
               style={({ pressed }) => [
-                styles.saveButton,
+                s.saveButton,
                 { opacity: pressed || profileSaveMutation.isPending ? 0.85 : 1 },
               ]}
               onPress={handleProfileSave}
@@ -475,7 +520,7 @@ export default function SettingsScreen() {
               ) : (
                 <>
                   <Feather name="check" size={18} color="#fff" />
-                  <Text style={styles.saveButtonText}>プロフィールを保存</Text>
+                  <Text style={s.saveButtonText}>プロフィールを保存</Text>
                 </>
               )}
             </Pressable>
@@ -483,14 +528,14 @@ export default function SettingsScreen() {
         )}
 
         {/* Logout */}
-        <View style={styles.section}>
-          <View style={styles.card}>
+        <View style={s.section}>
+          <View style={s.card}>
             <Pressable
-              style={({ pressed }) => [styles.logoutRow, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [s.logoutRow, { opacity: pressed ? 0.7 : 1 }]}
               onPress={handleLogout}
             >
               <Feather name="log-out" size={18} color={C.danger} />
-              <Text style={styles.logoutText}>ログアウト</Text>
+              <Text style={s.logoutText}>ログアウト</Text>
             </Pressable>
           </View>
         </View>
@@ -499,20 +544,15 @@ export default function SettingsScreen() {
   );
 }
 
-function WageInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-}) {
+type C = typeof Colors.light;
+
+function WageInput({ value, onChange, placeholder, C }: { value: string; onChange: (v: string) => void; placeholder: string; C: C }) {
+  const s = makeStyles(C);
   return (
-    <View style={styles.inputRow}>
-      <Text style={styles.currencyPrefix}>¥</Text>
+    <View style={s.inputRow}>
+      <Text style={s.currencyPrefix}>¥</Text>
       <TextInput
-        style={styles.input}
+        style={s.input}
         value={value}
         onChangeText={onChange}
         keyboardType="number-pad"
@@ -520,46 +560,35 @@ function WageInput({
         placeholderTextColor={C.textMuted}
         selectTextOnFocus
       />
-      <Text style={styles.unitSuffix}>/時</Text>
+      <Text style={s.unitSuffix}>/時</Text>
     </View>
   );
 }
 
-function SettingRow({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon: string;
-  children: React.ReactNode;
-}) {
+function SettingRow({ label, icon, children, C }: { label: string; icon: string; children: React.ReactNode; C: C }) {
+  const s = makeStyles(C);
   return (
-    <View style={styles.settingRow}>
-      <View style={styles.settingLeft}>
+    <View style={s.settingRow}>
+      <View style={s.settingLeft}>
         <Feather name={icon as any} size={16} color={C.textSecondary} />
-        <Text style={styles.settingLabel}>{label}</Text>
+        <Text style={s.settingLabel}>{label}</Text>
       </View>
-      <View style={styles.settingRight}>{children}</View>
+      <View style={s.settingRight}>{children}</View>
     </View>
   );
 }
 
-function BadgePicker({
-  badges,
-  selected,
-  color,
-  muted,
-  onToggle,
-}: {
+function BadgePicker({ badges, selected, color, muted, onToggle, C }: {
   badges: Badge[];
   selected: string[];
   color: string;
   muted: string;
   onToggle: (id: string) => void;
+  C: C;
 }) {
+  const s = makeStyles(C);
   return (
-    <View style={styles.badgePickerGrid}>
+    <View style={s.badgePickerGrid}>
       {badges.map((b) => {
         const isSelected = selected.includes(b.id);
         const disabled = !isSelected && selected.length >= 6;
@@ -567,7 +596,7 @@ function BadgePicker({
           <Pressable
             key={b.id}
             style={({ pressed }) => [
-              styles.badgePickerItem,
+              s.badgePickerItem,
               isSelected
                 ? { backgroundColor: muted, borderColor: color }
                 : { backgroundColor: C.backgroundTertiary, borderColor: C.border },
@@ -576,7 +605,7 @@ function BadgePicker({
             onPress={() => onToggle(b.id)}
             disabled={disabled}
           >
-            <Text style={[styles.badgePickerText, { color: isSelected ? color : C.textMuted }]}>
+            <Text style={[s.badgePickerText, { color: isSelected ? color : C.textMuted }]}>
               {b.label}
             </Text>
           </Pressable>
@@ -586,317 +615,319 @@ function BadgePicker({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.background,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    color: C.text,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 8,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    color: C.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  sectionLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  addRangeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: C.tintMuted,
-    borderWidth: 1,
-    borderColor: "rgba(37,99,235,0.15)",
-  },
-  addRangeBtnText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    color: C.tint,
-  },
-  card: {
-    backgroundColor: C.backgroundSecondary,
-    borderRadius: 16,
-    paddingVertical: 4,
-    shadowColor: C.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  emptyRangeCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  emptyRangeText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: C.textMuted,
-    lineHeight: 20,
-  },
-  rangesContainer: {
-    gap: 8,
-  },
-  rangeCard: {
-    backgroundColor: C.backgroundSecondary,
-    borderRadius: 14,
-    overflow: "hidden",
-    shadowColor: C.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  rangeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  rangeLabelInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: C.text,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    paddingBottom: 4,
-  },
-  removeRangeBtn: {
-    padding: 4,
-  },
-  rangeBody: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  rangeTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  rangeTimeInput: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    color: C.text,
-    textAlign: "center",
-    width: 58,
-    height: 36,
-    backgroundColor: C.backgroundTertiary,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    padding: 0,
-  },
-  rangeTimeSep: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-    color: C.textSecondary,
-  },
-  rangeWageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  rangeWageInput: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    color: C.text,
-    textAlign: "center",
-    width: 72,
-    height: 36,
-    backgroundColor: C.backgroundTertiary,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    padding: 0,
-  },
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    backgroundColor: C.backgroundSecondary,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: C.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: C.tintMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileName: {
-    fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
-    color: C.text,
-  },
-  profileEmail: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: C.textSecondary,
-    marginTop: 2,
-  },
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 52,
-  },
-  settingLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-    color: C.text,
-  },
-  settingRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    justifyContent: "flex-end",
-  },
-  currencyPrefix: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-    color: C.textSecondary,
-  },
-  input: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    color: C.text,
-    textAlign: "right",
-    minWidth: 60,
-    maxWidth: 120,
-  },
-  unitSuffix: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: C.textSecondary,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: C.textMuted,
-    marginTop: 6,
-    marginLeft: 4,
-    lineHeight: 17,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: C.border,
-    marginHorizontal: 16,
-  },
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: C.tint,
-    paddingVertical: 15,
-    borderRadius: 14,
-    shadowColor: C.tint,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-    color: "#fff",
-  },
-  logoutRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-    color: C.danger,
-  },
-  badgePickerLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    color: C.textSecondary,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  badgePickerGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-  },
-  badgePickerItem: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  badgePickerText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
-  noBadgeWrap: {
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  noBadgeText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: C.textMuted,
-  },
-});
+function makeStyles(C: C) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: C.background,
+    },
+    title: {
+      fontSize: 28,
+      fontFamily: "Inter_700Bold",
+      color: C.text,
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+      paddingTop: 8,
+    },
+    section: {
+      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: C.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
+    sectionLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8,
+    },
+    themeRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    themeBtn: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: C.backgroundSecondary,
+      borderWidth: 1.5,
+      borderColor: C.border,
+    },
+    themeBtnActive: {
+      borderColor: C.tint,
+      backgroundColor: C.tintMuted,
+    },
+    themeBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
+      color: C.textMuted,
+    },
+    themeBtnTextActive: {
+      color: C.tint,
+      fontFamily: "Inter_600SemiBold",
+    },
+    addRangeBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 10,
+      backgroundColor: C.tintMuted,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    addRangeBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: C.tint,
+    },
+    card: {
+      backgroundColor: C.backgroundSecondary,
+      borderRadius: 16,
+      paddingVertical: 4,
+      shadowColor: C.cardShadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 1,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    profileCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: C.tintMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    profileName: {
+      fontSize: 16,
+      fontFamily: "Inter_600SemiBold",
+      color: C.text,
+    },
+    profileEmail: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: C.textMuted,
+      marginTop: 2,
+    },
+    emptyRangeCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    emptyRangeText: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: C.textMuted,
+      lineHeight: 20,
+    },
+    rangesContainer: {
+      gap: 10,
+    },
+    rangeCard: {
+      backgroundColor: C.backgroundSecondary,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    rangeHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+      gap: 8,
+    },
+    rangeLabelInput: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
+      color: C.text,
+      padding: 0,
+    },
+    removeRangeBtn: {
+      padding: 4,
+    },
+    rangeBody: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    rangeTimeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    rangeTimeInput: {
+      backgroundColor: C.backgroundTertiary,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      fontSize: 14,
+      fontFamily: "Inter_500Medium",
+      color: C.text,
+      width: 62,
+      textAlign: "center",
+    },
+    rangeTimeSep: {
+      fontSize: 14,
+      color: C.textMuted,
+    },
+    rangeWageRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: C.backgroundTertiary,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    rangeWageInput: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: "Inter_500Medium",
+      color: C.text,
+      padding: 0,
+    },
+    settingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      minHeight: 52,
+    },
+    settingLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    settingLabel: {
+      fontSize: 15,
+      fontFamily: "Inter_500Medium",
+      color: C.text,
+    },
+    settingRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    input: {
+      fontSize: 15,
+      fontFamily: "Inter_500Medium",
+      color: C.text,
+      minWidth: 60,
+      textAlign: "right",
+      padding: 0,
+    },
+    currencyPrefix: {
+      fontSize: 14,
+      fontFamily: "Inter_500Medium",
+      color: C.textSecondary,
+    },
+    unitSuffix: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: C.textMuted,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: C.border,
+      marginHorizontal: 16,
+    },
+    hint: {
+      fontSize: 12,
+      fontFamily: "Inter_400Regular",
+      color: C.textMuted,
+      marginTop: 6,
+      marginLeft: 4,
+      lineHeight: 18,
+    },
+    saveButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: C.tint,
+      borderRadius: 14,
+      paddingVertical: 15,
+    },
+    saveButtonText: {
+      fontSize: 16,
+      fontFamily: "Inter_600SemiBold",
+      color: "#fff",
+    },
+    logoutRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    logoutText: {
+      fontSize: 15,
+      fontFamily: "Inter_500Medium",
+      color: C.danger,
+    },
+    noBadgeWrap: {
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    noBadgeText: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: C.textMuted,
+    },
+    badgePickerLabel: {
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
+      color: C.textMuted,
+      marginHorizontal: 16,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    badgePickerGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    badgePickerItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      borderWidth: 1.5,
+    },
+    badgePickerText: {
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+    },
+  });
+}
